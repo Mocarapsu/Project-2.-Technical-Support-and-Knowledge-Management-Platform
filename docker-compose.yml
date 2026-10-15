@@ -1,0 +1,26 @@
+﻿version: '3.9'
+services:
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: rialsa-postgres
+    ports:
+      - '5432:5432'
+    restart: always
+  backend-core:
+    build: ./backend-core
+    container_name: rialsa-backend-core
+    ports:
+      - '4000:4000'
+    restart: always
+  ai-service:
+    build: ./ai-service
+    container_name: rialsa-ai-service
+    ports:
+      - '8000:8000'
+    restart: always
+  frontend:
+    build: ./frontend
+    container_name: rialsa-frontend
+    ports:
+      - '3000:80'
+    restart: always

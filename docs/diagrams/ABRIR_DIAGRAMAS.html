@@ -1,0 +1,115 @@
+﻿<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><title>RIALSA - Diagramas A5</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+mermaid.initialize({ startOnLoad: true, theme: "default", securityLevel: "loose" });
+</script></head>
+<body class="bg-slate-200 p-8 space-y-10 font-sans">
+<div class="max-w-6xl mx-auto bg-slate-900 text-white p-6 rounded-xl shadow">
+<h1 class="text-2xl font-bold">RIALSA - Diagramas Oficiales A5 (Usa Win + Shift + S para recortar)</h1>
+</div>
+<div class="max-w-6xl mx-auto bg-white p-6 rounded-xl shadow"><h2 class="font-bold text-lg mb-4">5.2 High-Level Architecture Diagram</h2><pre class="mermaid">
+flowchart TD
+  A[GID Actors: End User / Technician / Admin] -->|HTTPS TLS 1.2 + HTTP Polling FR-05| B[/frontend: React SPA Portal]
+  B -->|REST API + JWT Auth| C[/backend-core: Node.js + Express]
+  C -->|SQL TCP| D[(PostgreSQL 16: Users, Tickets, KB, Audit Logs)]
+  C -->|Internal REST / Webhook| E[/ai-service: Python FastAPI RAG]
+  E -->|Cosine Search & Vector Purge FR-18| F[(ChromaDB Local Vector Store)]
+  E -->|Primary Cloud LLM| G[Anthropic Claude API]
+  E -->|Contingency Failover 5s NFR-09| H[Local Ollama Runtime]
+</pre></div>
+<div class="max-w-6xl mx-auto bg-white p-6 rounded-xl shadow"><h2 class="font-bold text-lg mb-4">8.1 Use Case Diagram</h2><pre class="mermaid">
+flowchart LR
+  EU([End User]) --- UC1([UC-01: Login JWT FR-20])
+  EU --- UC2([UC-02: Consult AI RAG + PII Masking FR-09..14, NFR-07])
+  EU --- UC3([UC-03: Create Ticket Max 5MB FR-01..03])
+  EU --- UC4([UC-04: Track Status via HTTP Polling FR-05])
+  ST([Technician]) --- UC6([UC-06: Least-Loaded Auto-Assign FR-04])
+  ST --- UC7([UC-07: Add Private Internal Notes FR-06])
+  ST --- UC8([UC-08: Publish / Archive KB & Purge Vectors FR-15..18])
+  AD([Administrator]) --- UC10([UC-10: Manage RBAC Roles FR-19, FR-21])
+  AD --- UC11([UC-11: KPI Dashboard 07-19h & 30m SLA Alert FR-22, BR-02])
+  AD --- UC13([UC-13: Export Reports CSV / PDF FR-23])
+</pre></div>
+<div class="max-w-6xl mx-auto bg-white p-6 rounded-xl shadow"><h2 class="font-bold text-lg mb-4">8.2 Component Diagram</h2><pre class="mermaid">
+flowchart TB
+  subgraph FE [Frontend SPA]
+    UI[Portal / Tech Panel / Admin UI] --> POLL[HTTP Polling & Health Fallback Client]
+  end
+  subgraph BE [Backend Core]
+    AUTH[Auth & RBAC Middleware] --> TKT[Ticket & Auto-Assign Engine]
+    AUTH --> KB[KB Versioning Controller]
+    AUTH --> KPI[KPI Business-Hours Engine]
+    CRON[SLA 30m & 72h Cron Workers] --> TKT
+  end
+  subgraph AI [AI Microservice]
+    SAFE[PII Masker & Prompt Guardrail] --> RAG[RAG Retriever & LLM Router]
+  end
+  POLL --> AUTH
+  TKT --> PG[(PostgreSQL 16)]
+  KB --> PG
+  KB --> SAFE
+  TKT --> SAFE
+  RAG --> CHR[(ChromaDB)]
+  RAG --> CLAUDE[Claude API]
+  RAG --> OLLAMA[Local Ollama]
+</pre></div>
+<div class="max-w-6xl mx-auto bg-white p-6 rounded-xl shadow"><h2 class="font-bold text-lg mb-4">8.3 Deployment Diagram</h2><pre class="mermaid">
+flowchart TB
+  CLI[GID Workstations: Plant Kiosks, Warehouse, Corporate] -->|HTTPS TLS 1.2+| NGX[Nginx Reverse Proxy on GID Host]
+  NGX --> C1[Docker Container 1: /frontend]
+  NGX --> C2[Docker Container 2: /backend-core]
+  C2 --> C3[(Docker Container 3: PostgreSQL 16)]
+  C2 --> C4[Docker Container 4: /ai-service + ChromaDB]
+  C4 --> C5[Docker Container 5: Local Ollama Port 11434 NFR-09]
+  C4 --> EXT[External WAN: Anthropic Claude API]
+</pre></div>
+<div class="max-w-6xl mx-auto bg-white p-6 rounded-xl shadow"><h2 class="font-bold text-lg mb-4">8.4 Sequence Diagrams (AI Escalation, Ticket Auto-Assign & KB Purge)</h2><pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor U as End User / Technician
+  participant UI as /frontend
+  participant BE as /backend-core
+  participant AI as /ai-service
+  participant DB as PostgreSQL / ChromaDB
+  U->>UI: Send AI Chat Query (FR-09)
+  UI->>BE: POST /api/v1/ai/chat
+  BE->>AI: Forward Request
+  AI->>AI: Mask PII (NFR-07) & Check Prompt Guardrail (BR-04)
+  AI->>DB: Search Vectors & Generate Markdown + Citation (FR-11, FR-14)
+  AI-->>UI: Return Guide OR Escalate on 3rd Fail to Least-Loaded Tech (FR-04, FR-12)
+  U->>UI: Archive Obsolete KB Article (FR-15, FR-18)
+  UI->>BE: PATCH /api/v1/kb/articles/:id/archive
+  BE->>DB: Update status=ARCHIVED & Insert Immutable Audit Log (FR-08)
+  BE->>AI: DELETE /internal/vectors/:article_id
+  AI->>DB: Purge Embeddings from ChromaDB
+</pre></div>
+<div class="max-w-6xl mx-auto bg-white p-6 rounded-xl shadow"><h2 class="font-bold text-lg mb-4">10. User Flow & 16. AI/ML RAG Pipeline</h2><pre class="mermaid">
+flowchart TD
+  L([Login SCR-01]) --> H{Ping /ai-service/health}
+  H -->|Online| C[AI Chat SCR-02 -> PII Mask -> Guardrail -> ChromaDB Retrieval]
+  H -->|Offline > 5s NFR-08| M[Graceful Degradation: Manual Ticket Form Max 5MB]
+  C --> R{Issue Resolved?}
+  R -->|Yes| CL[Auto-Close Ticket resolved_by=AI FR-07, FR-13]
+  R -->|3 Fails or Critical FR-12| ES[Auto-Escalate + Least-Loaded Tech Assignment FR-04]
+  M --> P[Track Status via HTTP Polling FR-05]
+  ES --> P
+</pre></div>
+<div class="max-w-6xl mx-auto bg-white p-6 rounded-xl shadow"><h2 class="font-bold text-lg mb-4">12. Entity-Relationship Diagram (ERD)</h2><pre class="mermaid">
+erDiagram
+  USERS ||--o{ TICKETS : requests_or_assigned
+  TICKETS ||--o{ TICKET_NOTES : contains
+  TICKETS ||--o{ ATTACHMENTS : has_files
+  TICKETS |o--o| AI_SESSIONS : escalated_from
+  KB_ARTICLES ||--|{ KB_VERSIONS : versions
+  USERS ||--o{ AUDIT_LOGS : triggers
+  USERS { UUID user_id PK VARCHAR email UK VARCHAR password_hash ENUM role }
+  TICKETS { SERIAL ticket_id PK UUID requester_id FK UUID assigned_tech_id FK ENUM category ENUM priority ENUM status ENUM resolved_by BOOLEAN sla_breached TIMESTAMPTZ created_at }
+  TICKET_NOTES { UUID note_id PK INTEGER ticket_id FK TEXT content BOOLEAN is_internal }
+  ATTACHMENTS { UUID attachment_id PK INTEGER ticket_id FK VARCHAR mime_type INTEGER file_size_bytes }
+  KB_ARTICLES { UUID article_id PK VARCHAR title ENUM category ENUM status BOOLEAN is_vectorized }
+  AI_SESSIONS { UUID session_id PK INTEGER ticket_id FK INTEGER failed_attempts JSONB transcript_json }
+  AUDIT_LOGS { BIGSERIAL log_id PK UUID actor_id FK TIMESTAMPTZ timestamp VARCHAR action JSONB old_value JSONB new_value }
+</pre></div>
+</body></html>

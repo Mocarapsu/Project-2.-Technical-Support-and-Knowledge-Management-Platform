@@ -1,0 +1,5 @@
+﻿{
+  "name": "rialsa-backend-core",
+  "version": "1.0.0",
+  "main": "src/server.js"
+}

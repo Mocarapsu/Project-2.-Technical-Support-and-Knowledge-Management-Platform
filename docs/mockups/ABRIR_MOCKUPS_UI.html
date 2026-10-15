@@ -1,0 +1,353 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Sistema de Soporte TI - GID (RIALSA)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen">
+
+  <!-- BARRA SUPERIOR DE CONTROL (SOLO PARA EL EQUIPO / CAPTURAS) -->
+  <div class="bg-gray-800 text-white px-4 py-2 text-xs flex flex-wrap justify-between items-center gap-2">
+    <div><strong>Proyecto RIALSA (A5)</strong> | Usa el Login o cambia de pantalla aqui:</div>
+    <div class="flex flex-wrap gap-1.5">
+      <button onclick="showScreen('scr01')" class="bg-gray-700 hover:bg-blue-600 px-2.5 py-1 rounded">1. Login (SCR-01)</button>
+      <button onclick="showScreen('scr02')" class="bg-gray-700 hover:bg-blue-600 px-2.5 py-1 rounded">2. Empleado IA (SCR-02)</button>
+      <button onclick="showScreen('scr03')" class="bg-gray-700 hover:bg-blue-600 px-2.5 py-1 rounded">3. Panel Tecnico (SCR-03)</button>
+      <button onclick="showScreen('scr04')" class="bg-gray-700 hover:bg-blue-600 px-2.5 py-1 rounded">4. Base Conocimiento (SCR-04)</button>
+      <button onclick="showScreen('scr05')" class="bg-gray-700 hover:bg-blue-600 px-2.5 py-1 rounded">5. Admin KPIs (SCR-05)</button>
+      <button onclick="showAllScreens()" class="bg-amber-600 hover:bg-amber-500 px-2.5 py-1 rounded font-bold">Ver Todas Juntas (Para Capturas Word)</button>
+    </div>
+  </div>
+
+  <!-- NAVBAR NORMAL DEL SISTEMA -->
+  <header class="bg-blue-700 text-white shadow">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div>
+        <h1 class="font-bold text-lg">GID - Plataforma de Soporte Tecnico y Conocimiento</h1>
+        <p class="text-xs text-blue-200">Grupo Industrial Delnorte S.A. de C.V.</p>
+      </div>
+      <div class="flex items-center space-x-3 text-xs">
+        <span class="bg-green-600 px-2.5 py-1 rounded font-semibold">IA Online (Ollama Local Listo)</span>
+        <span id="currentUserBadge" class="bg-blue-800 px-3 py-1 rounded">Sin sesion iniciada</span>
+        <button onclick="showScreen('scr01')" class="underline text-blue-200 hover:text-white">Salir</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto p-6 space-y-10">
+
+    <!-- ================= SCR-01: LOGIN FUNCIONAL ================= -->
+    <section id="scr01" class="screen-section bg-white border border-gray-300 rounded-lg shadow-sm p-6 max-w-md mx-auto mt-6">
+      <div class="border-b pb-3 mb-4 flex justify-between items-center">
+        <div>
+          <h2 class="text-lg font-bold text-gray-800">Iniciar Sesion (SCR-01)</h2>
+          <p class="text-xs text-gray-500">Ingresa tus datos o haz clic en un usuario de prueba</p>
+        </div>
+        <span class="text-xs bg-gray-100 border px-2 py-0.5 rounded">ES | EN</span>
+      </div>
+
+      <div id="loginError" class="hidden bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-xs mb-3">
+        Correo o contrasena incorrectos. Usa los botones de abajo para autocompletar.
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1">Correo Institucional:</label>
+          <input id="emailInput" type="email" value="empleado@gid.com.mx" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1">Contrasena:</label>
+          <input id="passInput" type="password" value="Gid2026*" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+        </div>
+        <button onclick="doLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-sm">
+          Entrar al Sistema
+        </button>
+      </div>
+
+      <!-- CUADRO DE DATOS DE ACCESO PARA PROBAR RAPIDO -->
+      <div class="mt-5 pt-4 border-t border-gray-200 bg-gray-50 p-3 rounded text-xs space-y-2">
+        <div class="font-bold text-gray-700">Datos de prueba (Haz clic para llenar y entrar):</div>
+        <div class="grid grid-cols-1 gap-1.5">
+          <button onclick="quickLogin('empleado@gid.com.mx', 'END_USER', 'scr02')" class="text-left p-2 bg-white border rounded hover:bg-blue-50 flex justify-between">
+            <span><strong>1. Empleado:</strong> empleado@gid.com.mx</span><span class="text-blue-600 font-semibold">Pass: Gid2026*</span>
+          </button>
+          <button onclick="quickLogin('ricardo@gid.com.mx', 'TECHNICIAN', 'scr03')" class="text-left p-2 bg-white border rounded hover:bg-blue-50 flex justify-between">
+            <span><strong>2. Tecnico TI:</strong> ricardo@gid.com.mx</span><span class="text-blue-600 font-semibold">Pass: Gid2026*</span>
+          </button>
+          <button onclick="quickLogin('bautista@gid.com.mx', 'ADMIN', 'scr05')" class="text-left p-2 bg-white border rounded hover:bg-blue-50 flex justify-between">
+            <span><strong>3. Admin TI:</strong> bautista@gid.com.mx</span><span class="text-blue-600 font-semibold">Pass: Gid2026*</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCR-02: PORTAL DEL EMPLEADO ================= -->
+    <section id="scr02" class="screen-section hidden bg-white border border-gray-300 rounded-lg shadow-sm overflow-hidden">
+      <div class="bg-gray-100 border-b px-5 py-3 flex justify-between items-center">
+        <h2 class="font-bold text-gray-800">SCR-02 | Portal del Empleado — Asistente IA y Reporte de Tickets</h2>
+        <span id="attemptBadge" class="text-xs bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 rounded font-semibold">Intento IA: 1 de 3 (FR-12)</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x">
+        <!-- Lado Izquierdo: Chat IA -->
+        <div class="md:col-span-7 p-5 flex flex-col justify-between space-y-4">
+          <div>
+            <h3 class="font-bold text-sm text-blue-800 mb-2">Asistente Virtual de Soporte (Nivel 1 - RAG)</h3>
+            <div id="chatBox" class="border rounded bg-gray-50 p-3 h-64 overflow-y-auto space-y-3 text-xs">
+              <div class="bg-blue-100 text-blue-900 p-2.5 rounded max-w-md">
+                <strong>Asistente GID:</strong> Hola Carlos. Describe tu problema tecnico para buscar una solucion en los manuales oficiales de GID.
+              </div>
+              <div class="bg-blue-600 text-white p-2.5 rounded max-w-md ml-auto">
+                <strong>Tu:</strong> La impresora Zebra de la Linea 2 no imprime y parpadea en rojo.
+              </div>
+              <div class="bg-white border p-3 rounded space-y-1.5 shadow-sm">
+                <p class="font-bold text-gray-800">Pasos recomendados (Formato Markdown - FR-11):</p>
+                <ol class="list-decimal list-inside space-y-1 text-gray-700">
+                  <li>Verifica que el cable de red LAN este bien conectado.</li>
+                  <li>Presiona el boton <code>FEED</code> por 3 segundos para calibrar las etiquetas.</li>
+                  <li>Reinicia la cola de impresion en tu PC.</li>
+                </ol>
+                <p class="text-[11px] text-blue-700 font-semibold pt-1 border-t">Fuente citada (FR-14): [Articulo KB-014: Impresora Zebra Planta]</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex gap-2">
+              <input id="chatInput" type="text" placeholder="Escribe un mensaje de prueba..." class="flex-1 border rounded px-3 py-1.5 text-xs">
+              <button onclick="sendChat()" class="bg-blue-600 text-white px-4 py-1.5 rounded text-xs font-bold">Enviar</button>
+            </div>
+            <div class="flex gap-2 pt-1">
+              <button onclick="alert('Ticket cerrado automaticamente como Resuelto por IA (FR-07 / FR-13)')" class="flex-1 bg-green-600 text-white py-1.5 rounded text-xs font-semibold">Si, ya quedo resuelto (FR-07)</button>
+              <button onclick="failAttempt()" class="flex-1 bg-gray-700 text-white py-1.5 rounded text-xs font-semibold">No funciono (Sumar intento)</button>
+              <button onclick="alert('Caso escalado como CRITICO a un tecnico humano con el historial adjunto (FR-12)')" class="bg-red-600 text-white px-3 py-1.5 rounded text-xs font-semibold">Escalar Urgente</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lado Derecho: Formulario Manual y Estado -->
+        <div class="md:col-span-5 p-5 space-y-4 bg-gray-50">
+          <div>
+            <h3 class="font-bold text-xs uppercase text-gray-600 mb-2">Mis Tickets Activos (HTTP Polling 15s - FR-05)</h3>
+            <div id="myTicketsList" class="space-y-2 text-xs">
+              <div class="bg-white border p-2.5 rounded flex justify-between items-center">
+                <div><strong>#1042 - Impresora Linea 2</strong><div class="text-[11px] text-gray-500">2026-10-15T14:20:00Z (UTC)</div></div>
+                <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-semibold">EN PROGRESO</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t pt-3 space-y-2.5 text-xs">
+            <h3 class="font-bold text-gray-800">Crear Ticket Manual (Contingencia NFR-08)</h3>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block font-semibold mb-1">Categoria (FR-03):</label>
+                <select id="tktCat" class="w-full border rounded p-1.5 bg-white">
+                  <option>HARDWARE</option><option>NETWORK</option><option>SOFTWARE</option><option>ACCESS</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-semibold mb-1">Prioridad (FR-03):</label>
+                <select id="tktPrio" class="w-full border rounded p-1.5 bg-white font-bold text-red-700">
+                  <option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block font-semibold mb-1">Descripcion del problema:</label>
+              <textarea id="tktDesc" rows="2" class="w-full border rounded p-2 bg-white">Sin conexion a red en terminal 4 de planta...</textarea>
+            </div>
+            <div class="border border-dashed border-gray-400 bg-white p-2 rounded text-center text-[11px] text-gray-600">
+              Archivo adjunto (.PDF, .JPG, .PNG - Max 5MB) [FR-01]
+            </div>
+            <button onclick="createManualTicket()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded">
+              Guardar Ticket Manual
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCR-03: PANEL DEL TECNICO ================= -->
+    <section id="scr03" class="screen-section hidden bg-white border border-gray-300 rounded-lg shadow-sm overflow-hidden">
+      <div class="bg-gray-100 border-b px-5 py-3 flex justify-between items-center">
+        <h2 class="font-bold text-gray-800">SCR-03 | Panel de Tecnico TI — Cola de Tickets y Notas Internas</h2>
+        <button onclick="showScreen('scr04')" class="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded font-semibold">Ir al Editor de Articulos KB (SCR-04) -></button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 divide-x text-xs">
+        <div class="md:col-span-4 p-4 bg-gray-50 space-y-2">
+          <div class="font-bold text-gray-700 uppercase mb-2">Cola Asignada (Menor Carga - FR-04)</div>
+          <div class="bg-red-50 border-2 border-red-500 p-3 rounded space-y-1">
+            <div class="flex justify-between font-bold text-red-800"><span>#1045 - Red Planta</span><span>CRITICAL</span></div>
+            <div class="text-red-600">SLA Restante: 18 min (BR-02)</div>
+            <span class="inline-block bg-purple-200 text-purple-900 px-2 py-0.5 rounded text-[10px] font-bold">ESCALADO POR IA (3 Fallos)</span>
+          </div>
+          <div class="bg-white border p-3 rounded space-y-1">
+            <div class="flex justify-between font-bold"><span>#1042 - Impresora Zebra</span><span>HIGH</span></div>
+            <div class="text-gray-500">Estado: EN PROGRESO</div>
+          </div>
+        </div>
+
+        <div class="md:col-span-8 p-5 space-y-4">
+          <div class="flex justify-between items-center border-b pb-2">
+            <div>
+              <h3 class="font-bold text-sm text-gray-800">Detalle del Ticket #1045 — Sin red en Kiosco 3</h3>
+              <p class="text-gray-500">Auto-asignado a Ricardo H. (Menor cantidad de tickets En Progreso - FR-04)</p>
+            </div>
+            <span class="bg-purple-100 text-purple-900 font-bold px-2.5 py-1 rounded border">Estado: ESCALATED</span>
+          </div>
+
+          <div class="bg-gray-100 border p-3 rounded space-y-1">
+            <div class="font-bold text-gray-700">Historial de Conversacion IA Adjunto (FR-12):</div>
+            <p class="text-gray-600">El empleado intento 3 veces con el articulo <code>KB-008</code> sin recuperar conexion Ethernet en planta.</p>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <label class="font-bold text-gray-700">Agregar Nota Tecnica (FR-06):</label>
+              <label class="flex items-center space-x-1.5 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded font-semibold text-amber-900">
+                <input type="checkbox" checked> <span>Nota Interna Privada (Oculta al Empleado - FR-06)</span>
+              </label>
+            </div>
+            <textarea rows="2" class="w-full border rounded p-2">Se reinicio el puerto Gi0/4 del switch de planta y volvio a dar IP.</textarea>
+            <div class="flex justify-end gap-2">
+              <button onclick="alert('Nota interna guardada con flag de privacidad RBAC (FR-06)')" class="bg-gray-700 text-white px-4 py-1.5 rounded font-semibold">Guardar Nota</button>
+              <button onclick="alert('Ticket marcado como RESUELTO por HUMANO (FR-13) y registrado en Audit Log (FR-08)')" class="bg-green-600 text-white px-4 py-1.5 rounded font-semibold">Marcar como Resuelto</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCR-04: EDITOR BASE DE CONOCIMIENTOS ================= -->
+    <section id="scr04" class="screen-section hidden bg-white border border-gray-300 rounded-lg shadow-sm overflow-hidden">
+      <div class="bg-gray-100 border-b px-5 py-3 flex justify-between items-center">
+        <h2 class="font-bold text-gray-800">SCR-04 | Gestion de Base de Conocimientos (KB) para IA RAG</h2>
+        <span class="text-xs bg-green-100 text-green-800 border border-green-300 px-2.5 py-0.5 rounded font-semibold">Vectorizado en ChromaDB (FR-18)</span>
+      </div>
+
+      <div class="p-5 grid grid-cols-1 md:grid-cols-12 gap-5 text-xs">
+        <div class="md:col-span-8 space-y-3">
+          <div class="grid grid-cols-3 gap-3">
+            <div class="col-span-2">
+              <label class="font-bold block mb-1">Titulo del Articulo (KB-014):</label>
+              <input type="text" value="Guia de Calibracion Impresora Zebra ZT230" class="w-full border rounded p-1.5">
+            </div>
+            <div>
+              <label class="font-bold block mb-1">Categoria (FR-17):</label>
+              <select class="w-full border rounded p-1.5"><option>HARDWARE</option><option>NETWORK</option></select>
+            </div>
+          </div>
+          <div>
+            <label class="font-bold block mb-1">Contenido del Manual (Markdown - FR-15):</label>
+            <textarea rows="4" class="w-full border rounded p-2 font-mono bg-gray-50">## Pasos de Calibracion\n1. Revisar cable de red LAN.\n2. Presionar boton FEED por 3 segundos.\n3. Reiniciar cola de impresion.</textarea>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="alert('Nueva version publicada y vectorizada automaticamente en ChromaDB (FR-18)')" class="bg-blue-600 text-white px-4 py-2 rounded font-bold">Publicar y Vectorizar para la IA (FR-18)</button>
+            <button onclick="alert('Articulo archivado y embeddings eliminados de ChromaDB (FR-18 Audit)')" class="bg-red-600 text-white px-4 py-2 rounded font-bold">Archivar y Purgar Vectores</button>
+          </div>
+        </div>
+
+        <div class="md:col-span-4 bg-gray-50 border rounded p-4 space-y-2">
+          <div class="font-bold text-gray-700 uppercase">Historial de Versiones (FR-16)</div>
+          <div class="bg-white border p-2 rounded font-semibold">v2.0 (Actual) - Editado por Salvador R.</div>
+          <div class="bg-white border p-2 rounded text-gray-500">v1.0 - Editado por Ricardo H.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCR-05: DASHBOARD ADMINISTRATIVO ================= -->
+    <section id="scr05" class="screen-section hidden bg-white border border-gray-300 rounded-lg shadow-sm overflow-hidden">
+      <div class="bg-gray-100 border-b px-5 py-3 flex justify-between items-center">
+        <h2 class="font-bold text-gray-800">SCR-05 | Dashboard Administrativo de KPIs y Alertas SLA</h2>
+        <div class="space-x-2 text-xs">
+          <button onclick="alert('Descargando reporte_kpis_gid.csv (FR-23)')" class="bg-green-600 text-white px-3 py-1 rounded font-semibold">Exportar CSV (FR-23)</button>
+          <button onclick="alert('Descargando reporte_kpis_gid.pdf (FR-23)')" class="bg-red-600 text-white px-3 py-1 rounded font-semibold">Exportar PDF (FR-23)</button>
+        </div>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs">
+        <div class="bg-red-100 border-l-4 border-red-600 text-red-900 p-3 rounded font-bold flex justify-between">
+          <span>ALERTA SLA (BR-02): El Ticket Critico #1048 lleva 31 minutos abierto sin tecnico asignado.</span>
+          <span class="underline cursor-pointer">Asignar Tecnico</span>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div class="border rounded p-4 bg-gray-50">
+            <div class="text-gray-500 font-semibold">Tiempo Promedio Resolucion</div>
+            <div class="text-2xl font-bold text-gray-800 my-1">1.8 Horas</div>
+            <div class="text-[11px] text-blue-700">Solo horario habil 7:00-19:00 L-V (FR-22)</div>
+          </div>
+          <div class="border rounded p-4 bg-gray-50">
+            <div class="text-gray-500 font-semibold">Resueltos por IA vs Humano</div>
+            <div class="text-2xl font-bold text-green-700 my-1">64% IA / 36% Hum</div>
+            <div class="text-[11px] text-gray-500">Metrica FR-13</div>
+          </div>
+          <div class="border rounded p-4 bg-gray-50">
+            <div class="text-gray-500 font-semibold">Tickets por Categoria</div>
+            <div class="text-sm font-bold text-gray-800 my-2">Hardware: 38% | Red: 32%</div>
+            <div class="text-[11px] text-gray-500">Accesos y Software: 30%</div>
+          </div>
+          <div class="border rounded p-4 bg-gray-50">
+            <div class="text-gray-500 font-semibold">Carga de Tecnicos (FR-04)</div>
+            <div class="text-sm font-bold text-gray-800 my-2">Ricardo: 2 | Alfredo: 3</div>
+            <div class="text-[11px] text-green-700 font-semibold">Salvador: 0 (Siguiente Auto-Assign)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    let attempts = 1;
+    function showScreen(id) {
+      document.querySelectorAll(".screen-section").forEach(el => el.classList.add("hidden"));
+      document.getElementById(id).classList.remove("hidden");
+    }
+    function showAllScreens() {
+      document.querySelectorAll(".screen-section").forEach(el => el.classList.remove("hidden"));
+    }
+    function quickLogin(email, role, targetScreen) {
+      document.getElementById("emailInput").value = email;
+      document.getElementById("passInput").value = "Gid2026*";
+      document.getElementById("currentUserBadge").innerText = email + " (" + role + ")";
+      document.getElementById("loginError").classList.add("hidden");
+      showScreen(targetScreen);
+    }
+    function doLogin() {
+      const email = document.getElementById("emailInput").value.trim().toLowerCase();
+      if (email.includes("empleado")) return quickLogin(email, "END_USER", "scr02");
+      if (email.includes("ricardo") || email.includes("salvador")) return quickLogin(email, "TECHNICIAN", "scr03");
+      if (email.includes("bautista") || email.includes("admin")) return quickLogin(email, "ADMIN", "scr05");
+      document.getElementById("loginError").classList.remove("hidden");
+    }
+    function sendChat() {
+      const input = document.getElementById("chatInput");
+      if (!input.value.trim()) return;
+      const box = document.getElementById("chatBox");
+      box.innerHTML += `<div class="bg-blue-600 text-white p-2 rounded max-w-md ml-auto"><strong>Tu:</strong> ${input.value}</div>`;
+      box.innerHTML += `<div class="bg-white border p-2.5 rounded shadow-sm"><strong>Asistente IA:</strong> He consultado la Base de Conocimientos oficial de GID. Por favor revisa el articulo <strong>[KB-014]</strong>.</div>`;
+      input.value = "";
+      box.scrollTop = box.scrollHeight;
+    }
+    function failAttempt() {
+      attempts++;
+      document.getElementById("attemptBadge").innerText = "Intento IA: " + attempts + " de 3 (FR-12)";
+      if (attempts >= 3) {
+        alert("Se alcanzaron 3 intentos fallidos (FR-12). El ticket se ha escalado automaticamente a la cola de tecnicos humanos.");
+      }
+    }
+    function createManualTicket() {
+      const cat = document.getElementById("tktCat").value;
+      const prio = document.getElementById("tktPrio").value;
+      const list = document.getElementById("myTicketsList");
+      const id = Math.floor(1050 + Math.random() * 90);
+      list.innerHTML += `<div class="bg-white border p-2.5 rounded flex justify-between items-center"><div><strong>#${id} - ${cat} (${prio})</strong><div class="text-[11px] text-gray-500">${new Date().toISOString()}</div></div><span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">OPEN</span></div>`;
+      alert("Ticket Manual #" + id + " creado con timestamp UTC (FR-02).");
+    }
+  </script>
+</body>
+</html>
