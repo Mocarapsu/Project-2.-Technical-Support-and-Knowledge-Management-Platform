@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Reglas globales de contraste para inputs, textareas y selects */
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    color: #0f172a !important; /* slate-900 oscuro para máxima legibilidad */
+    background-color: #ffffff !important;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #94a3b8 !important; /* slate-400 */
+    opacity: 1;
+  }
+
+  select option {
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+  }
+}

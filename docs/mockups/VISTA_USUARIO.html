@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Figma - Vista Usuario (Empleado) - GID RIALSA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen p-6">
+
+  <!-- FRAME PRINCIPAL (1440px) -->
+  <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden border border-slate-200">
+    
+    <!-- NAVBAR DEL PORTAL -->
+    <header class="bg-blue-700 text-white px-8 py-4 flex justify-between items-center shadow-md">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-lg bg-white text-blue-700 font-black flex items-center justify-center text-sm shadow">GID</div>
+        <div>
+          <h1 class="font-bold text-base leading-tight">Plataforma de Soporte Técnico y Gestión de Conocimiento</h1>
+          <p class="text-xs text-blue-200">Grupo Industrial Delnorte S.A. de C.V. — RIALSA (A5)</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4 text-xs">
+        <span class="bg-emerald-600 px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> IA Online (Ollama Local)
+        </span>
+        <div class="flex items-center space-x-2 bg-blue-800 px-3 py-1.5 rounded-lg border border-blue-600">
+          <span class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-[11px]">CM</span>
+          <span class="font-medium">Carlos Méndez (Empleado / Planta 2)</span>
+        </div>
+        <button class="text-blue-200 hover:text-white font-medium underline">Salir</button>
+      </div>
+    </header>
+
+    <!-- CUERPO DE LA VISTA DEL EMPLEADO (SCR-02) -->
+    <div class="p-8 space-y-6">
+      
+      <!-- ENCABEZADO DE PANTALLA -->
+      <div class="flex justify-between items-center border-b border-slate-200 pb-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded font-bold uppercase">SCR-02</span>
+            <h2 class="text-xl font-bold text-slate-900">Portal del Empleado — Asistente Virtual Nivel 1 & Soporte</h2>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">Describe tu incidente técnico para obtener una solución inmediata de los manuales oficiales de GID.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 rounded-full font-bold shadow-sm">
+            Intento IA: 1 de 3 (FR-12)
+          </span>
+          <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded border">HTTP Polling: 15s (FR-05)</span>
+        </div>
+      </div>
+
+      <!-- GRID DE 2 COLUMNAS (CHAT IA vs CONTINGENCIA/TICKETS) -->
+      <div class="grid grid-cols-12 gap-8">
+        
+        <!-- COLUMNA IZQUIERDA: CHAT ASISTENTE IA (7 COLUMNAS) -->
+        <div class="col-span-7 flex flex-col justify-between border border-slate-200 rounded-xl p-5 bg-slate-50/50 shadow-sm space-y-4">
+          <div>
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="font-bold text-sm text-blue-900 flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                Chat de Asistencia IA (FastAPI + ChromaDB RAG - FR-09)
+              </h3>
+              <span class="text-[11px] text-slate-400 font-medium">Enmascaramiento PII Activo (NFR-07)</span>
+            </div>
+
+            <!-- HISTORIAL DEL CHAT -->
+            <div class="border border-slate-200 rounded-lg bg-white p-4 h-96 overflow-y-auto space-y-4 text-xs shadow-inner">
+              
+              <!-- MENSAJE IA INICIAL -->
+              <div class="flex gap-2.5">
+                <div class="w-7 h-7 rounded-full bg-blue-600 text-white flex-shrink-0 flex items-center justify-center font-bold text-[10px]">IA</div>
+                <div class="bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none max-w-lg border border-slate-200">
+                  <p class="font-bold text-blue-900 mb-1">Asistente Virtual GID:</p>
+                  <p>Hola Carlos. Describe el fallo que estás experimentando. Buscaré la solución en las guías técnicas oficiales del Grupo Industrial Delnorte.</p>
+                </div>
+              </div>
+
+              <!-- MENSAJE USUARIO -->
+              <div class="flex gap-2.5 justify-end">
+                <div class="bg-blue-600 text-white p-3 rounded-2xl rounded-tr-none max-w-lg shadow-sm">
+                  <p class="font-semibold text-blue-100 text-[10px] mb-0.5">Carlos Méndez (Tú):</p>
+                  <p>La impresora Zebra ZT230 de la Línea 2 no imprime las etiquetas de embarque y la luz frontal parpadea en rojo.</p>
+                </div>
+                <div class="w-7 h-7 rounded-full bg-slate-800 text-white flex-shrink-0 flex items-center justify-center font-bold text-[10px]">CM</div>
+              </div>
+
+              <!-- RESPUESTA IA RAG CON FUENTE Y FORMATO MARKDOWN -->
+              <div class="flex gap-2.5">
+                <div class="w-7 h-7 rounded-full bg-blue-600 text-white flex-shrink-0 flex items-center justify-center font-bold text-[10px]">IA</div>
+                <div class="bg-white border border-blue-200 p-3.5 rounded-2xl rounded-tl-none max-w-lg shadow-sm space-y-2">
+                  <p class="font-bold text-blue-900">Pasos de Solución Recomendados (Formato Markdown - FR-11):</p>
+                  <ol class="list-decimal list-inside space-y-1 text-slate-700 pl-1">
+                    <li>Verifica que el cable de red LAN azul esté conectado firmemente al puerto posterior.</li>
+                    <li>Mantén presionado el botón <code>FEED</code> durante <strong>3 segundos</strong> hasta que expulse una etiqueta en blanco para auto-calibrar sensores.</li>
+                    <li>Abre el compartimento y asegura que la palanca dorada de presión del cabezal esté trabada.</li>
+                  </ol>
+                  <div class="mt-2 pt-2 border-t border-slate-100 flex justify-between items-center text-[11px]">
+                    <span class="text-blue-700 font-semibold flex items-center gap-1">
+                      📖 Cita Oficial (FR-14): <strong class="underline">Artículo KB-014 (Calibración Zebra ZT230)</strong>
+                    </span>
+                    <span class="text-slate-400">Similitud Coseno: 0.89</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- INPUT DE MENSAJE Y ACCIONES RÁPIDAS -->
+          <div class="space-y-3">
+            <div class="flex gap-2">
+              <input type="text" value="He probado los pasos pero sigue parpadeando el LED..." class="flex-1 border border-slate-300 rounded-lg px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              <button class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-xs font-bold shadow-sm transition">
+                Enviar
+              </button>
+            </div>
+
+            <!-- BOTONES DE FEEDBACK Y ESCALADO (FR-07 / FR-12) -->
+            <div class="grid grid-cols-3 gap-2 pt-1 text-xs">
+              <button class="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3 rounded-lg font-semibold flex items-center justify-center gap-1.5 shadow-sm">
+                <span>✓</span> Sí, quedó resuelto (FR-07)
+              </button>
+              <button class="bg-slate-700 hover:bg-slate-800 text-white py-2 px-3 rounded-lg font-semibold flex items-center justify-center gap-1.5 shadow-sm">
+                <span>✕</span> No funcionó (Intento 2/3)
+              </button>
+              <button class="bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-lg font-semibold flex items-center justify-center gap-1.5 shadow-sm">
+                <span>▲</span> Escalar Urgente a Técnico
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: TICKETS ACTIVOS Y FORMULARIO MANUAL (5 COLUMNAS) -->
+        <div class="col-span-5 space-y-6">
+          
+          <!-- TARJETA: MIS TICKETS ACTIVOS (FR-05) -->
+          <div class="border border-slate-200 rounded-xl p-5 bg-white shadow-sm space-y-3">
+            <div class="flex justify-between items-center">
+              <h3 class="font-bold text-xs uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Mis Tickets Activos (Polling 15s)
+              </h3>
+              <span class="text-[11px] text-blue-600 font-semibold cursor-pointer hover:underline">Ver Historial Completo</span>
+            </div>
+
+            <div class="space-y-2">
+              <div class="border border-blue-200 bg-blue-50/50 p-3 rounded-lg flex justify-between items-center shadow-xs">
+                <div>
+                  <div class="font-bold text-xs text-slate-800">#1042 — Impresora Zebra Línea 2</div>
+                  <div class="text-[11px] text-slate-500">Creado: 2026-10-15T14:20:00Z | Asignado: Ricardo H.</div>
+                </div>
+                <span class="bg-blue-100 text-blue-800 border border-blue-300 px-2.5 py-1 rounded-md text-[10px] font-bold">
+                  EN PROGRESO
+                </span>
+              </div>
+              <div class="border border-slate-200 bg-white p-3 rounded-lg flex justify-between items-center shadow-xs opacity-75">
+                <div>
+                  <div class="font-bold text-xs text-slate-800">#1038 — Acceso VPN Remota</div>
+                  <div class="text-[11px] text-slate-500">Resuelto por Asistente IA (FR-13)</div>
+                </div>
+                <span class="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-md text-[10px] font-bold">
+                  RESUELTO
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TARJETA: CREACIÓN DE TICKET MANUAL (CONTINGENCIA NFR-08) -->
+          <div class="border border-slate-200 rounded-xl p-5 bg-slate-50 shadow-sm space-y-3.5">
+            <div>
+              <h3 class="font-bold text-sm text-slate-900">Crear Ticket Manual (Contingencia NFR-08)</h3>
+              <p class="text-[11px] text-slate-500">Usa este formulario si el sistema IA no está disponible o requieres atención especializada.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Categoría (FR-03):</label>
+                <select class="w-full border border-slate-300 rounded-lg p-2 bg-white text-slate-800 focus:ring-1 focus:ring-blue-500">
+                  <option selected>HARDWARE</option>
+                  <option>NETWORK</option>
+                  <option>SOFTWARE</option>
+                  <option>ACCESS</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Prioridad Solicitada (FR-03):</label>
+                <select class="w-full border border-slate-300 rounded-lg p-2 bg-white font-bold text-red-600 focus:ring-1 focus:ring-blue-500">
+                  <option selected>CRITICAL (Planta detenida)</option>
+                  <option>HIGH</option>
+                  <option>MEDIUM</option>
+                  <option>LOW</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="text-xs">
+              <label class="block font-semibold text-slate-700 mb-1">Descripción detallada del incidente:</label>
+              <textarea rows="3" class="w-full border border-slate-300 rounded-lg p-2.5 bg-white text-xs focus:ring-1 focus:ring-blue-500" placeholder="Escribe el modelo del equipo, ubicación exacta y qué ocurre...">Falla de alimentación en el sensor óptico del escáner de código de barras en la terminal de empaque.</textarea>
+            </div>
+
+            <!-- ADJUNTO ARCHIVO (FR-01) -->
+            <div class="border-2 border-dashed border-slate-300 rounded-lg p-3 text-center bg-white hover:bg-slate-50 cursor-pointer transition">
+              <div class="text-xs text-slate-600 font-medium">📷 Arrastra una foto del error o documento (.PDF, .JPG, .PNG)</div>
+              <div class="text-[10px] text-slate-400 mt-0.5">Tamaño máximo permitido: <strong>5.0 MB (FR-01)</strong></div>
+            </div>
+
+            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-xs shadow-md transition">
+              Guardar y Notificar a Mesa de Ayuda
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>

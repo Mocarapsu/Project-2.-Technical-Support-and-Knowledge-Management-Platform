@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Figma - Suite Completa (Todas las Ventanas de Figma - RIALSA)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .screen-container { display: none; }
+    .screen-container.active { display: block; }
+  </style>
+</head>
+<body class="bg-[#0B0D11] text-slate-100 antialiased min-h-screen">
+
+  <!-- BARRA DE CONTROL GLOBAL SUPERIOR -->
+  <nav class="bg-[#12151c] border-b border-[#222836] px-6 py-2.5 flex flex-wrap justify-between items-center text-xs gap-3 sticky top-0 z-50">
+    <div class="flex items-center gap-2.5">
+      <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+      <span class="font-bold text-white tracking-wide">Figma Design System — Todas las Ventanas</span>
+      <span class="text-slate-400 font-mono text-[11px]">(MacBook Pro 16" - 1728 x 1117)</span>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <select onchange="setFrame(this.value)" class="bg-[#181d28] text-slate-200 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500 font-medium">
+        <optgroup label="── 1. Módulo Auth (9 Pantallas) ──">
+          <option value="frame-auth-login-default" selected>1. Login — Default (Split Screen)</option>
+          <option value="frame-auth-login-error">2. Login — Error</option>
+          <option value="frame-auth-login-loading">3. Login — Loading</option>
+          <option value="frame-auth-recuperar">4. Recuperar contraseña</option>
+          <option value="frame-auth-recuperacion-enviada">5. Recuperación enviada</option>
+          <option value="frame-auth-nueva-password">6. Nueva contraseña</option>
+          <option value="frame-auth-password-actualizada">7. Contraseña actualizada</option>
+          <option value="frame-auth-sesion-expirada">8. Sesión expirada</option>
+          <option value="frame-auth-acceso-denegado">9. Acceso denegado</option>
+        </optgroup>
+        <optgroup label="── 2. Portal Empleado (5 Pantallas) ──">
+          <option value="frame-emp-inicio">10. Empleado: Inicio / Home</option>
+          <option value="frame-emp-asistente">11. Empleado: Asistente IA (Chat)</option>
+          <option value="frame-emp-mis-tickets">12. Empleado: Mis tickets (Lista)</option>
+          <option value="frame-emp-nuevo">13. Empleado: Nuevo ticket (Formulario)</option>
+          <option value="frame-emp-detalle">14. Empleado: Detalle ticket (TCK-1048)</option>
+        </optgroup>
+        <optgroup label="── 3. Consola Técnico TI (3 Pantallas) ──">
+          <option value="frame-tec-cola">15. Técnico: Cola de tickets (Métricas & Tabla)</option>
+          <option value="frame-tec-detalle">16. Técnico: Detalle ticket (TCK-1048 & Notas)</option>
+          <option value="frame-tec-kb">17. Técnico: Base de conocimiento (Catálogo)</option>
+        </optgroup>
+        <optgroup label="── 4. Consola Dirección Admin (1 Pantalla) ──">
+          <option value="frame-admin-dashboard">18. Admin: Dashboard KPIs & Auditoría</option>
+        </optgroup>
+      </select>
+
+      <button onclick="showAllFrames()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] transition">
+        Ver Todo (Canvas Figma)
+      </button>
+    </div>
+  </nav>
+
+  <!-- ========================================================================= -->
+  <!-- 1. AUTH: LOGIN — DEFAULT (1728 x 1117)                                    -->
+  <!-- ========================================================================= -->
+  <div id="frame-auth-login-default" class="screen-container active">
+    <div class="min-h-[calc(100vh-49px)] flex flex-col justify-between p-8 lg:p-14 bg-[#0B0D11]">
+      <div class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center my-auto">
+        <div class="lg:col-span-6 space-y-6">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold">
+            <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+            <span>Portal Institucional GID</span>
+          </div>
+          <h1 class="text-xl font-black text-white tracking-wider">RIALSA</h1>
+          <div class="space-y-4">
+            <h2 class="text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.08]">
+              Resolver antes.<br>Escalar con<br>contexto.
+            </h2>
+            <p class="text-sm text-slate-400 max-w-md leading-relaxed font-normal pt-2">
+              Una plataforma centralizada para tickets, conocimiento y asistencia con IA basada únicamente en documentación autorizada de GID.
+            </p>
+          </div>
+          <div class="pt-6 border-t border-slate-800/60 text-xs text-slate-500 font-mono">
+            Grupo Industrial Delnorte S.A. de C.V. · Soporte Técnico N1 & N2
+          </div>
+        </div>
+
+        <div class="lg:col-span-6 flex justify-center lg:justify-end">
+          <div class="w-full max-w-md bg-white text-slate-800 rounded-2xl p-9 shadow-2xl border border-slate-200">
+            <div class="mb-6">
+              <h3 class="text-2xl font-bold text-slate-900 tracking-tight">Bienvenido de vuelta</h3>
+              <p class="text-xs text-slate-500 mt-1.5">Inicia sesión con tu cuenta institucional para acceder.</p>
+            </div>
+            <form onsubmit="event.preventDefault(); setFrame('frame-emp-inicio');" class="space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Correo electrónico</label>
+                <input type="email" value="ricardo.bueno@gid.com.mx" class="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600">
+              </div>
+              <div>
+                <div class="flex justify-between items-center mb-1.5">
+                  <label class="block text-xs font-semibold text-slate-700">Contraseña</label>
+                  <a href="#" onclick="setFrame('frame-auth-recuperar')" class="text-[11px] text-blue-600 font-medium hover:underline">¿Olvidaste tu contraseña?</a>
+                </div>
+                <input type="password" value="••••••••••••" class="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600">
+              </div>
+              <div class="pt-2">
+                <button type="submit" class="w-full bg-slate-900 hover:bg-black text-white font-semibold py-2.5 px-4 rounded-lg text-xs transition">
+                  Iniciar sesión →
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. AUTH: LOGIN — ERROR -->
+  <div id="frame-auth-login-error" class="screen-container">
+    <div class="min-h-[calc(100vh-49px)] flex flex-col justify-center items-center bg-[#0B0D11] p-8">
+      <div class="w-full max-w-md bg-white text-slate-800 rounded-2xl p-9 shadow-2xl border border-red-300 space-y-4">
+        <h3 class="text-2xl font-bold text-slate-900">No pudimos iniciar sesión</h3>
+        <div class="bg-red-50 border border-red-200 text-red-700 text-xs p-3 rounded-lg">
+          Error AUTH-04: Correo o contraseña incorrectos. Verifica que pertenezca al dominio corporativo.
+        </div>
+        <button onclick="setFrame('frame-auth-login-default')" class="w-full bg-slate-900 text-white font-semibold py-2.5 rounded-lg text-xs">Intentar de nuevo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. AUTH: LOGIN — LOADING -->
+  <div id="frame-auth-login-loading" class="screen-container">
+    <div class="min-h-[calc(100vh-49px)] flex flex-col justify-center items-center bg-[#0B0D11] p-8">
+      <div class="w-full max-w-md bg-white text-slate-800 rounded-2xl p-9 shadow-2xl text-center space-y-4">
+        <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <h3 class="text-xl font-bold text-slate-900">Validando credenciales...</h3>
+        <p class="text-xs text-slate-500">Conectando con el servidor de autenticación RADIUS de GID.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. AUTH: RECUPERAR -->
+  <div id="frame-auth-recuperar" class="screen-container">
+    <div class="min-h-[calc(100vh-49px)] flex flex-col justify-center items-center bg-[#0B0D11] p-8">
+      <div class="w-full max-w-md bg-white text-slate-800 rounded-2xl p-9 shadow-2xl space-y-4">
+        <h3 class="text-xl font-bold text-slate-900">Recupera tu acceso</h3>
+        <p class="text-xs text-slate-500">Ingresa tu correo institucional y te enviaremos un enlace de recuperación seguro.</p>
+        <input type="email" placeholder="nombre@delnorte.com.mx" class="w-full text-xs p-2.5 border rounded-lg">
+        <button onclick="setFrame('frame-auth-recuperacion-enviada')" class="w-full bg-slate-900 text-white font-semibold py-2.5 rounded-lg text-xs">Enviar enlace →</button>
+        <button onclick="setFrame('frame-auth-login-default')" class="w-full text-slate-600 text-xs py-2 hover:underline">← Volver al inicio de sesión</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. AUTH: RECUPERACIÓN ENVIADA -->
+  <div id="frame-auth-recuperacion-enviada" class="screen-container">
+    <div class="min-h-[calc(100vh-49px)] flex flex-col justify-center items-center bg-[#0B0D11] p-8">
+      <div class="w-full max-w-md bg-white text-slate-800 rounded-2xl p-9 shadow-2xl text-center space-y-4">
+        <div class="text-3xl">✉️</div>
+        <h3 class="text-xl font-bold text-slate-900">Revisa tu correo</h3>
+        <p class="text-xs text-slate-600">Hemos enviado las instrucciones para restablecer tu contraseña a tu dirección institucional.</p>
+        <button onclick="setFrame('frame-auth-nueva-password')" class="w-full bg-slate-900 text-white font-semibold py-2.5 rounded-lg text-xs">Simular clic en enlace recibido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. AUTH: NUEVA CONTRASEÑA -->
+  <div id="frame-auth-nueva-password" class="screen-container">
+    <div class="min-h-[calc(100vh-49px)] flex flex-col justify-center items-center bg-[#0B0D11] p-8">
+      <div class="w-full max-w-md bg-white text-slate-800 rounded-2xl p-9 shadow-2xl space-y-4">
+        <h3 class="text-xl font-bold text-slate-900">Establece una nueva contraseña</h3>
+        <input type="password" placeholder="Nueva contraseña" class="w-full text-xs p-2.5 border rounded-lg">
+        <input type="password" placeholder="Confirmar contraseña" class="w-full text-xs p-2.5 border rounded-lg">
+        <button onclick="setFrame('frame-auth-password-actualizada')" class="w-full bg-slate-900 text-white font-semibold py-2.5 rounded-lg text-xs">Guardar contraseña</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. AUTH: CONTRASEÑA ACTUALIZADA -->
+  <div id="frame-auth-password-actualizada" class="screen-container">
+    <div class="min-h-[calc(100vh-49px)] flex flex-col justify-center items-center bg-[#0B0D11] p-8">
+      <div class="w-full max-w-md bg-white text-slate-800 rounded-2xl p-9 shadow-2xl text-center space-y-4">
+        <div class="text-3xl">✓</div>
+        <h3 class="text-xl font-bold text-slate-900">Contraseña actualizada</h3>
+        <p class="text-xs text-slate-600">Tu contraseña ha sido restablecida con éxito.</p>
+        <button onclick="setFrame('frame-auth-login-default')" class="w-full bg-slate-900 text-white font-semibold py-2.5 rounded-lg text-xs">Iniciar sesión</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. AUTH: SESIÓN EXPIRADA -->
+  <div id="frame-auth-sesion-expirada" class="screen-container">
+    <div class="min-h-[calc(100vh-49px)] flex flex-col justify-center items-center bg-[#0B0D11] p-8">
+      <div class="w-full max-w-md bg-white text-slate-800 rounded-2xl p-9 shadow-2xl text-center space-y-4">
+        <div class="text-3xl">⏱️</div>
+        <h3 class="text-xl font-bold text-slate-900">Tu sesión expiró</h3>
+        <p class="text-xs text-slate-600">Por motivos de seguridad, tu sesión ha caducado por inactividad.</p>
+        <button onclick="setFrame('frame-auth-login-default')" class="w-full bg-slate-900 text-white font-semibold py-2.5 rounded-lg text-xs">Volver a iniciar sesión</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. AUTH: ACCESO DENEGADO -->
+  <div id="frame-auth-acceso-denegado" class="screen-container">
+    <div class="min-h-[calc(100vh-49px)] flex flex-col justify-center items-center bg-[#0B0D11] p-8">
+      <div class="w-full max-w-md bg-white text-slate-800 rounded-2xl p-9 shadow-2xl text-center space-y-4">
+        <div class="text-3xl">⛔</div>
+        <h3 class="text-xl font-bold text-slate-900">No tienes acceso a esta sección</h3>
+        <p class="text-xs text-slate-600">Tu rol no cuenta con los permisos necesarios para ver esta consola.</p>
+        <button onclick="setFrame('frame-auth-login-default')" class="w-full bg-slate-900 text-white font-semibold py-2.5 rounded-lg text-xs">Volver al inicio</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. EMPLEADO: INICIO / HOME -->
+  <div id="frame-emp-inicio" class="screen-container">
+    <div class="flex min-h-[calc(100vh-49px)]">
+      <aside class="w-64 bg-[#0B0D11] border-r border-[#1a1d24] p-5 flex flex-col justify-between flex-shrink-0">
+        <div class="space-y-6">
+          <h1 class="text-xl font-black text-white">RIALSA</h1>
+          <button onclick="setFrame('frame-emp-nuevo')" class="w-full bg-[#1d4ed8] text-white font-medium text-xs py-2 rounded-lg">+ Crear ticket</button>
+          <nav class="space-y-1 text-xs">
+            <a href="#" class="block px-3 py-2 bg-[#1d4ed8] text-white rounded-lg">Inicio</a>
+            <a href="#" onclick="setFrame('frame-emp-asistente')" class="block px-3 py-2 text-slate-400 hover:text-white">Asistente IA</a>
+            <a href="#" onclick="setFrame('frame-emp-mis-tickets')" class="block px-3 py-2 text-slate-400 hover:text-white">Mis tickets</a>
+            <a href="#" onclick="setFrame('frame-tec-kb')" class="block px-3 py-2 text-slate-400 hover:text-white">Base de conocimiento</a>
+          </nav>
+        </div>
+        <div class="text-xs text-slate-400 border-t border-slate-800 pt-3">
+          <div class="font-bold text-white">Ricardo Bueno</div>
+          <a href="#" onclick="setFrame('frame-auth-login-default')" class="text-[11px] underline">Cerrar sesión</a>
+        </div>
+      </aside>
+
+      <main class="flex-1 bg-[#0B0D11] p-8 overflow-y-auto">
+        <div class="max-w-6xl mx-auto space-y-6">
+          <!-- Hero Card -->
+          <div class="bg-white rounded-2xl p-10 border border-slate-200 shadow-xl space-y-4">
+            <span class="bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full font-bold">✨ Asistente IA RIALSA Activo</span>
+            <h2 class="text-4xl font-extrabold text-slate-900">Hola, Ricardo Bueno.<br><span class="text-blue-600">¿En qué podemos ayudarte hoy?</span></h2>
+            <p class="text-xs text-slate-500">Obtén soluciones inmediatas de nuestros manuales autorizados o levanta una solicitud de soporte técnico.</p>
+            <div class="flex gap-2 max-w-lg pt-2">
+              <input type="text" placeholder="Describe un fallo, software o sistema..." class="flex-1 text-xs p-3 border rounded-xl">
+              <button onclick="setFrame('frame-emp-asistente')" class="bg-slate-900 text-white text-xs px-5 py-3 rounded-xl font-semibold">Buscar</button>
+            </div>
+          </div>
+
+          <!-- 3 Tarjetas de acción -->
+          <div class="grid grid-cols-3 gap-5">
+            <div onclick="setFrame('frame-emp-asistente')" class="bg-white p-6 rounded-2xl border shadow-sm cursor-pointer hover:shadow-md transition">
+              <div class="text-2xl mb-2">🤖</div>
+              <h3 class="font-bold text-slate-900 text-sm">Asistente RIALSA IA</h3>
+              <p class="text-xs text-slate-500 mt-1">Diagnósticos en tiempo real y pasos guiados.</p>
+            </div>
+            <div onclick="setFrame('frame-emp-nuevo')" class="bg-white p-6 rounded-2xl border shadow-sm cursor-pointer hover:shadow-md transition">
+              <div class="text-2xl mb-2">🎫</div>
+              <h3 class="font-bold text-slate-900 text-sm">Crear nuevo ticket</h3>
+              <p class="text-xs text-slate-500 mt-1">Registra solicitud con prioridad y archivos.</p>
+            </div>
+            <div onclick="setFrame('frame-tec-kb')" class="bg-white p-6 rounded-2xl border shadow-sm cursor-pointer hover:shadow-md transition">
+              <div class="text-2xl mb-2">📖</div>
+              <h3 class="font-bold text-slate-900 text-sm">Base de conocimiento</h3>
+              <p class="text-xs text-slate-500 mt-1">Manuales de VPN, impresoras Zebra y ERP.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 11. EMPLEADO: ASISTENTE IA -->
+  <div id="frame-emp-asistente" class="screen-container">
+    <div class="flex min-h-[calc(100vh-49px)]">
+      <aside class="w-64 bg-[#0B0D11] border-r border-[#1a1d24] p-5 flex flex-col justify-between flex-shrink-0">
+        <h1 class="text-xl font-black text-white">RIALSA</h1>
+        <div class="text-xs text-slate-400"><a href="#" onclick="setFrame('frame-auth-login-default')" class="underline">Cerrar sesión</a></div>
+      </aside>
+      <main class="flex-1 bg-[#0B0D11] p-8 overflow-y-auto">
+        <div class="max-w-6xl mx-auto bg-white text-slate-800 rounded-2xl p-8 border border-slate-200 shadow-xl space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <h2 class="text-xl font-bold flex items-center gap-2">🤖 Chat Asistente RIALSA IA <span class="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">🟢 Ollama Local Activo</span></h2>
+            <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded">Intento 1 de 3</span>
+          </div>
+          <div class="bg-slate-50 p-5 rounded-xl border min-h-[300px] space-y-4 text-xs">
+            <div class="flex gap-2">
+              <span class="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-[10px]">IA</span>
+              <div class="bg-white p-3.5 rounded-xl border shadow-xs max-w-xl">
+                <p class="font-bold text-blue-900 mb-1">Asistente Virtual GID:</p>
+                <p>Hola Ricardo. Describe tu problema y buscaré la solución autorizada en los manuales de planta.</p>
+              </div>
+            </div>
+            <div class="flex gap-2 justify-end">
+              <div class="bg-blue-600 text-white p-3 rounded-xl max-w-xl shadow-xs">
+                La impresora Zebra ZT230 de Línea 2 no imprime etiquetas y parpadea en rojo.
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <span class="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-[10px]">IA</span>
+              <div class="bg-white p-3.5 rounded-xl border shadow-xs max-w-xl space-y-2">
+                <p class="font-bold text-blue-900">Pasos recomendados (Manual Oficial):</p>
+                <ol class="list-decimal list-inside pl-1 space-y-1 text-slate-700">
+                  <li>Verifica que el cable de red LAN azul esté conectado firmemente al puerto posterior.</li>
+                  <li>Mantén presionado el botón FEED durante 3 segundos para auto-calibrar sensores.</li>
+                  <li>Abre el compartimento y traba la palanca dorada de presión del cabezal.</li>
+                </ol>
+                <div class="text-[11px] text-blue-700 font-semibold border-t pt-2">📖 Cita Oficial: [Artículo KB-014: Calibración Zebra ZT230] (Similitud: 0.89)</div>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 text-xs">
+            <button onclick="alert('¡Ticket marcado como resuelto!')" class="bg-emerald-600 text-white py-2 rounded-lg font-bold">✓ Sí, quedó resuelto</button>
+            <button onclick="alert('Registrado fallo. Probando alternativa...')" class="bg-slate-800 text-white py-2 rounded-lg font-bold">✕ No funcionó (Intento 2/3)</button>
+            <button onclick="setFrame('frame-emp-nuevo')" class="bg-red-600 text-white py-2 rounded-lg font-bold">▲ Escalar a Técnico humano</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 12. EMPLEADO: MIS TICKETS -->
+  <div id="frame-emp-mis-tickets" class="screen-container">
+    <div class="flex min-h-[calc(100vh-49px)]">
+      <aside class="w-64 bg-[#0B0D11] border-r border-[#1a1d24] p-5 flex flex-col justify-between flex-shrink-0">
+        <h1 class="text-xl font-black text-white">RIALSA</h1>
+        <div class="text-xs text-slate-400"><a href="#" onclick="setFrame('frame-auth-login-default')" class="underline">Cerrar sesión</a></div>
+      </aside>
+      <main class="flex-1 bg-[#0B0D11] p-8 overflow-y-auto">
+        <div class="max-w-6xl mx-auto bg-white text-slate-800 rounded-2xl p-8 border border-slate-200 shadow-xl space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h2 class="text-2xl font-bold">Mis tickets</h2>
+              <p class="text-xs text-slate-500">Historial y estado de tus requerimientos de soporte técnico.</p>
+            </div>
+            <button onclick="setFrame('frame-emp-nuevo')" class="bg-slate-900 text-white text-xs px-4 py-2 rounded-lg font-semibold">+ Crear nuevo ticket</button>
+          </div>
+          <table class="w-full text-left text-xs border rounded-xl overflow-hidden">
+            <thead class="bg-slate-50 border-b uppercase text-[10px] text-slate-500">
+              <tr><th class="p-3">Ticket ID</th><th class="p-3">Asunto</th><th class="p-3">Prioridad</th><th class="p-3">Estado</th><th class="p-3">SLA Restante</th></tr>
+            </thead>
+            <tbody class="divide-y font-medium">
+              <tr onclick="setFrame('frame-emp-detalle')" class="hover:bg-slate-50 cursor-pointer">
+                <td class="p-3 font-bold text-blue-700">TCK-1048</td><td class="p-3 font-semibold">Sin conexión VPN laptop fuera de oficina</td><td class="p-3"><span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-bold border border-amber-200">Alta</span></td><td class="p-3 text-teal-600 font-bold">En progreso</td><td class="p-3 text-emerald-700 font-bold">01 h 12 min</td>
+              </tr>
+              <tr onclick="setFrame('frame-emp-detalle')" class="hover:bg-slate-50 cursor-pointer">
+                <td class="p-3 font-bold text-blue-700">TCK-1038</td><td class="p-3 font-semibold">Actualización certificados Outlook</td><td class="p-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">Media</span></td><td class="p-3 text-slate-500">Resuelto</td><td class="p-3 text-slate-400">Completado por IA</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 13. EMPLEADO: NUEVO TICKET -->
+  <div id="frame-emp-nuevo" class="screen-container">
+    <div class="flex min-h-[calc(100vh-49px)]">
+      <aside class="w-64 bg-[#0B0D11] border-r border-[#1a1d24] p-5 flex flex-col justify-between flex-shrink-0">
+        <h1 class="text-xl font-black text-white">RIALSA</h1>
+        <div class="text-xs text-slate-400"><a href="#" onclick="setFrame('frame-auth-login-default')" class="underline">Cerrar sesión</a></div>
+      </aside>
+      <main class="flex-1 bg-[#0B0D11] p-8 overflow-y-auto">
+        <div class="max-w-6xl mx-auto bg-white text-slate-800 rounded-2xl p-8 border border-slate-200 shadow-xl space-y-6">
+          <h2 class="text-2xl font-bold">Crear ticket</h2>
+          <div class="flex gap-2 border-b pb-4 text-xs font-semibold">
+            <span class="bg-black text-white px-3 py-1 rounded">01. Contacto</span>
+            <span class="border px-3 py-1 rounded text-slate-600">02. Detalle</span>
+            <span class="border px-3 py-1 rounded text-slate-600">03. Adjuntos</span>
+            <span class="border px-3 py-1 rounded text-slate-600">04. Envío</span>
+          </div>
+          <div class="grid grid-cols-12 gap-8">
+            <div class="col-span-8 space-y-4">
+              <input type="text" placeholder="Describe brevemente el problema" class="w-full text-xs p-3 border rounded-lg">
+              <textarea rows="4" placeholder="Indica qué estabas haciendo y cuándo comenzó..." class="w-full text-xs p-3 border rounded-lg"></textarea>
+              <div class="flex justify-end gap-3 pt-2">
+                <button onclick="setFrame('frame-emp-mis-tickets')" class="border text-xs px-4 py-2 rounded-lg">Cancelar</button>
+                <button onclick="setFrame('frame-emp-detalle')" class="bg-slate-900 text-white text-xs px-5 py-2 rounded-lg font-semibold">Crear ticket</button>
+              </div>
+            </div>
+            <div class="col-span-4 bg-slate-50 p-5 rounded-xl border text-xs space-y-3">
+              <h4 class="font-bold text-slate-900">Antes de enviar</h4>
+              <p class="text-slate-500">Un buen ticket evita preguntas adicionales y acelera la solución con soporte.</p>
+              <ul class="space-y-1.5 text-slate-700">
+                <li>✓ Mensaje de error exacto</li>
+                <li>✓ Equipo o sistema afectado</li>
+                <li>✓ Momento en que comenzó</li>
+              </ul>
+              <a href="#" onclick="setFrame('frame-emp-asistente')" class="text-blue-600 font-bold block pt-2 underline">Probar con IA primero →</a>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 14. EMPLEADO: DETALLE TICKET -->
+  <div id="frame-emp-detalle" class="screen-container">
+    <div class="flex min-h-[calc(100vh-49px)]">
+      <aside class="w-64 bg-[#0B0D11] border-r border-[#1a1d24] p-5 flex flex-col justify-between flex-shrink-0">
+        <h1 class="text-xl font-black text-white">RIALSA</h1>
+        <div class="text-xs text-slate-400"><a href="#" onclick="setFrame('frame-auth-login-default')" class="underline">Cerrar sesión</a></div>
+      </aside>
+      <main class="flex-1 bg-[#0B0D11] p-8 overflow-y-auto">
+        <div class="max-w-6xl mx-auto bg-white text-slate-800 rounded-2xl p-8 border border-slate-200 shadow-xl space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div class="flex items-center gap-3">
+              <h2 class="text-2xl font-bold">TCK-1048</h2>
+              <span class="bg-teal-500 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">En progreso</span>
+              <span class="bg-red-50 text-red-700 border border-red-200 text-xs px-2 py-0.5 rounded font-bold">PRIORIDAD ALTA</span>
+            </div>
+            <span class="text-xs text-slate-400">15 oct 2026 - 09:23</span>
+          </div>
+          <div class="bg-slate-900 text-white p-3.5 rounded-xl flex justify-between text-xs shadow-sm">
+            <span>SEGUIMIENTO ACTIVO · <strong class="text-emerald-400">SLA restante 01 h 12 min</strong></span>
+            <span>Técnico asignado: Mesa de ayuda - Nivel 1</span>
+          </div>
+          <div class="bg-slate-50 p-4 rounded-xl border text-xs">
+            <h4 class="font-bold mb-1">Descripción:</h4>
+            <p>No puedo conectarme a la VPN desde mi laptop fuera de la oficina. El cliente indica que no puede validar mis credenciales.</p>
+          </div>
+          <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-200 text-xs">
+            <h4 class="font-bold text-blue-900 mb-1">Contexto transferido desde RIALSA IA:</h4>
+            <p>El sistema generó diagnóstico previo. Fallo en validación RADIUS. Fuente consultada: KB-231 v2.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 15. TÉCNICO: COLA DE TICKETS -->
+  <div id="frame-tec-cola" class="screen-container">
+    <div class="flex min-h-[calc(100vh-49px)]">
+      <aside class="w-64 bg-[#0B0D11] border-r border-[#1a1d24] p-5 flex flex-col justify-between flex-shrink-0">
+        <div class="space-y-6">
+          <h1 class="text-xl font-black text-white">RIALSA</h1>
+          <nav class="space-y-1 text-xs">
+            <a href="#" class="block px-3 py-2 bg-[#1d4ed8] text-white rounded-lg">Cola de tickets</a>
+            <a href="#" onclick="setFrame('frame-tec-detalle')" class="block px-3 py-2 text-slate-400 hover:text-white">Detalle ticket</a>
+            <a href="#" onclick="setFrame('frame-tec-kb')" class="block px-3 py-2 text-slate-400 hover:text-white">Base de conocimiento</a>
+          </nav>
+        </div>
+        <div class="text-xs text-slate-400 border-t border-slate-800 pt-3">
+          <div class="font-bold text-white">Ricardo Bueno (Técnico TI)</div>
+          <a href="#" onclick="setFrame('frame-auth-login-default')" class="text-[11px] underline">Cerrar sesión</a>
+        </div>
+      </aside>
+      <main class="flex-1 bg-[#0B0D11] p-8 overflow-y-auto">
+        <div class="max-w-6xl mx-auto bg-white text-slate-800 rounded-2xl p-8 border border-slate-200 shadow-xl space-y-6">
+          <div class="flex justify-between items-center">
+            <div>
+              <h2 class="text-2xl font-bold">Cola de tickets</h2>
+              <p class="text-xs text-slate-500">Prioriza, asigna y resuelve solicitudes con la menor fricción.</p>
+            </div>
+            <button class="bg-slate-900 text-white text-xs px-4 py-2.5 rounded-lg font-semibold">+ Crear ticket interno</button>
+          </div>
+
+          <div class="bg-slate-900 text-white p-3.5 rounded-xl text-xs flex items-center shadow-sm">
+            <span class="font-bold uppercase tracking-wider text-slate-100">COLA PRIORITARIA</span>
+            <span class="mx-2 text-slate-500">·</span>
+            <span class="text-slate-300">12 sin asignar · 3 críticos · 7 escalados. Revisa primero los tickets con alta prioridad.</span>
+          </div>
+
+          <div class="grid grid-cols-4 gap-4">
+            <div class="border p-4 rounded-xl"><div class="text-3xl font-extrabold text-slate-900">12</div><div class="text-xs text-slate-500">Sin asignar</div></div>
+            <div class="border p-4 rounded-xl"><div class="text-3xl font-extrabold text-red-600">3</div><div class="text-xs text-slate-500">Críticos</div></div>
+            <div class="border p-4 rounded-xl"><div class="text-3xl font-extrabold text-slate-900">28</div><div class="text-xs text-slate-500">En progreso</div></div>
+            <div class="border p-4 rounded-xl"><div class="text-3xl font-extrabold text-slate-900">7</div><div class="text-xs text-slate-500">Resueltos</div></div>
+          </div>
+
+          <table class="w-full text-left text-xs border rounded-xl overflow-hidden">
+            <thead class="bg-slate-50 border-b uppercase text-[10px] text-slate-500">
+              <tr><th class="p-3">ID</th><th class="p-3">Asunto</th><th class="p-3">Solicitante</th><th class="p-3">Prioridad</th><th class="p-3">Estado</th><th class="p-3">Asignación</th></tr>
+            </thead>
+            <tbody class="divide-y font-medium">
+              <tr onclick="setFrame('frame-tec-detalle')" class="hover:bg-slate-50 cursor-pointer">
+                <td class="p-3 font-bold text-blue-700">TCK-1045</td><td class="p-3 font-semibold">ERP bloqueado al facturar</td><td class="p-3">Ana Rentería</td><td class="p-3"><span class="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded font-bold">Crítica</span></td><td class="p-3">Abierto</td><td class="p-3 text-red-600 font-bold">Sin asignar</td>
+              </tr>
+              <tr onclick="setFrame('frame-tec-detalle')" class="hover:bg-slate-50 cursor-pointer">
+                <td class="p-3 font-bold text-blue-700">TCK-1046</td><td class="p-3 font-semibold">Sin acceso a VPN desde casa</td><td class="p-3">Ricardo Bueno</td><td class="p-3"><span class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded font-bold">Alta</span></td><td class="p-3 text-teal-600 font-bold">En progreso</td><td class="p-3">Ana Torres</td>
+              </tr>
+              <tr onclick="setFrame('frame-tec-detalle')" class="hover:bg-slate-50 cursor-pointer">
+                <td class="p-3 font-bold text-blue-700">TCK-1048</td><td class="p-3 font-semibold">Sin conexión VPN laptop</td><td class="p-3">Ricardo Bueno</td><td class="p-3"><span class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded font-bold">Alta</span></td><td class="p-3 text-teal-600 font-bold">En progreso</td><td class="p-3">Mesa Nivel 1</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 16. TÉCNICO: DETALLE TICKET -->
+  <div id="frame-tec-detalle" class="screen-container">
+    <div class="flex min-h-[calc(100vh-49px)]">
+      <aside class="w-64 bg-[#0B0D11] border-r border-[#1a1d24] p-5 flex flex-col justify-between flex-shrink-0">
+        <h1 class="text-xl font-black text-white">RIALSA</h1>
+        <div class="text-xs text-slate-400"><a href="#" onclick="setFrame('frame-auth-login-default')" class="underline">Cerrar sesión</a></div>
+      </aside>
+      <main class="flex-1 bg-[#0B0D11] p-8 overflow-y-auto">
+        <div class="max-w-6xl mx-auto bg-white text-slate-800 rounded-2xl p-8 border border-slate-200 shadow-xl space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <h2 class="text-2xl font-bold">TCK-1048</h2>
+            <div class="flex gap-2">
+              <button class="border text-xs px-3.5 py-1.5 rounded-lg font-semibold">Asignarme</button>
+              <button class="border text-xs px-3.5 py-1.5 rounded-lg font-semibold">Escalar</button>
+              <button class="bg-slate-900 text-white text-xs px-4 py-1.5 rounded-lg font-semibold">Resolver</button>
+            </div>
+          </div>
+          <div class="bg-slate-900 text-white p-3.5 rounded-xl flex justify-between text-xs shadow-sm">
+            <span class="text-red-400 font-bold">SLA Y PRIORIDAD: Alta (4 horas) - SLA 12 min restante</span>
+            <span class="text-slate-400">Última actividad: 09:54</span>
+          </div>
+          <div class="grid grid-cols-12 gap-8">
+            <div class="col-span-8 space-y-4 text-xs">
+              <div class="bg-slate-50 p-4 rounded-xl border">
+                <h4 class="font-bold mb-1">Incidencia reportada:</h4>
+                <p>No puedo conectarme a la VPN desde mi laptop fuera de la oficina.</p>
+              </div>
+              <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-200">
+                <h4 class="font-bold text-blue-900 mb-1">Contexto RIALSA IA:</h4>
+                <p>3 intentos guiados · Escalado automático por fallo repetido (IA-4123).</p>
+              </div>
+              <textarea rows="3" placeholder="Nota interna privada para el equipo de TI..." class="w-full p-3 border rounded-lg bg-slate-50"></textarea>
+              <button class="bg-slate-900 text-white px-4 py-2 rounded-lg font-semibold">Guardar nota interna</button>
+            </div>
+            <div class="col-span-4 bg-slate-50 p-5 rounded-xl border text-xs space-y-2">
+              <h4 class="font-bold text-slate-900">Datos del ticket</h4>
+              <p>Solicitante: <strong>Ricardo Bueno</strong></p>
+              <p>Asignado: <strong>Mesa Nivel 1</strong></p>
+              <p>Prioridad: <strong class="text-amber-700">Alta</strong></p>
+              <p>SLA Restante: <strong class="text-red-600">12 minutos</strong></p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 17. TÉCNICO: BASE DE CONOCIMIENTO -->
+  <div id="frame-tec-kb" class="screen-container">
+    <div class="flex min-h-[calc(100vh-49px)]">
+      <aside class="w-64 bg-[#0B0D11] border-r border-[#1a1d24] p-5 flex flex-col justify-between flex-shrink-0">
+        <h1 class="text-xl font-black text-white">RIALSA</h1>
+        <div class="text-xs text-slate-400"><a href="#" onclick="setFrame('frame-auth-login-default')" class="underline">Cerrar sesión</a></div>
+      </aside>
+      <main class="flex-1 bg-[#0B0D11] p-8 overflow-y-auto">
+        <div class="max-w-6xl mx-auto bg-white text-slate-800 rounded-2xl p-8 border border-slate-200 shadow-xl space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h2 class="text-2xl font-bold">Base de Conocimiento Técnica</h2>
+              <p class="text-xs text-slate-500">Manuales oficiales e índice vectorial sincronizado con ChromaDB.</p>
+            </div>
+            <span class="bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded font-bold">ChromaDB Vector Store</span>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="p-5 border rounded-xl bg-slate-50/50 space-y-2">
+              <span class="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">KB-014 · Hardware</span>
+              <h3 class="font-bold text-sm text-slate-900">Calibración y solución de atasco de etiquetas Zebra ZT230</h3>
+              <p class="text-xs text-slate-600">Procedimiento estándar para calibración de sensor térmico en planta.</p>
+            </div>
+            <div class="p-5 border rounded-xl bg-slate-50/50 space-y-2">
+              <span class="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">KB-231 · Acceso</span>
+              <h3 class="font-bold text-sm text-slate-900">Acceso VPN corporativo y errores de credenciales RADIUS</h3>
+              <p class="text-xs text-slate-600">Resolución de fallos de validación en GlobalProtect v2.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 18. ADMIN: DASHBOARD KPIS & AUDITORÍA -->
+  <div id="frame-admin-dashboard" class="screen-container">
+    <div class="flex min-h-[calc(100vh-49px)]">
+      <aside class="w-64 bg-[#0B0D11] border-r border-[#1a1d24] p-5 flex flex-col justify-between flex-shrink-0">
+        <div class="space-y-6">
+          <h1 class="text-xl font-black text-white">RIALSA</h1>
+          <div class="text-xs text-slate-400">Dirección TI & CISO</div>
+          <nav class="space-y-1 text-xs">
+            <a href="#" class="block px-3 py-2 bg-[#1d4ed8] text-white rounded-lg">Dashboard Ejecutivo</a>
+            <a href="#" onclick="setFrame('frame-tec-cola')" class="block px-3 py-2 text-slate-400 hover:text-white">Cola Operativa</a>
+          </nav>
+        </div>
+        <div class="text-xs text-slate-400 border-t border-slate-800 pt-3">
+          <div class="font-bold text-white">Ing. Bautista (CISO)</div>
+          <a href="#" onclick="setFrame('frame-auth-login-default')" class="text-[11px] underline">Cerrar sesión</a>
+        </div>
+      </aside>
+      <main class="flex-1 bg-[#0B0D11] p-8 overflow-y-auto">
+        <div class="max-w-6xl mx-auto bg-white text-slate-800 rounded-2xl p-8 border border-slate-200 shadow-xl space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h2 class="text-2xl font-bold">Dashboard Ejecutivo de KPIs & Auditoría Central</h2>
+              <p class="text-xs text-slate-500">Métricas consolidadas RAG vs personal técnico y cumplimiento de servicio SLA.</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="alert('Exportando CSV')" class="bg-emerald-600 text-white text-xs px-3.5 py-1.5 rounded-lg font-bold">📥 Exportar CSV</button>
+              <button onclick="alert('Exportando PDF')" class="bg-red-600 text-white text-xs px-3.5 py-1.5 rounded-lg font-bold">📄 Exportar PDF</button>
+            </div>
+          </div>
+
+          <!-- Banner Alerta SLA -->
+          <div class="bg-red-50 border-l-4 border-red-600 p-4 rounded-r-xl flex justify-between items-center text-xs">
+            <div>
+              <strong class="text-red-900 block font-bold uppercase">ALERTA CRÍTICA DE SLA (Regla BR-02)</strong>
+              <span class="text-red-800">Ticket Crítico #1048 supera 31 min sin técnico asignado.</span>
+            </div>
+            <button class="bg-red-600 text-white text-xs px-3.5 py-1.5 rounded-lg font-bold">Forzar Asignación</button>
+          </div>
+
+          <!-- 4 KPIs -->
+          <div class="grid grid-cols-4 gap-4">
+            <div class="border p-4 rounded-xl"><div class="text-xs font-bold text-slate-500 uppercase">Tiempo Prom. Resolución</div><div class="text-3xl font-extrabold mt-1">1.8 Horas</div><div class="text-[11px] text-blue-700 mt-1">07:00 - 19:00 L-V (FR-22)</div></div>
+            <div class="border p-4 rounded-xl"><div class="text-xs font-bold text-slate-500 uppercase">Resolución IA vs Humano</div><div class="text-3xl font-extrabold text-emerald-600 mt-1">64% / 36%</div><div class="text-[11px] text-slate-400 mt-1">64% IA · 36% Técnico</div></div>
+            <div class="border p-4 rounded-xl"><div class="text-xs font-bold text-slate-500 uppercase">Total Tickets Mes</div><div class="text-3xl font-extrabold mt-1">142</div><div class="text-[11px] text-slate-500 mt-1">Hardware: 38% · Red: 32%</div></div>
+            <div class="border p-4 rounded-xl"><div class="text-xs font-bold text-slate-500 uppercase">Least-Loaded Activo</div><div class="text-sm font-bold text-slate-800 mt-2 space-y-1"><div>Ricardo: 2 · Alfredo: 3</div><div class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Salvador: 0 (Siguiente)</div></div></div>
+          </div>
+
+          <!-- Tabla de Auditoría Inmutable RBAC -->
+          <div class="space-y-3">
+            <h3 class="font-bold text-sm text-slate-900">🛡️ Registro de Auditoría y Trazabilidad (FR-08 & FR-19 RBAC)</h3>
+            <table class="w-full text-left text-xs border rounded-xl overflow-hidden">
+              <thead class="bg-slate-50 border-b uppercase text-[10px] text-slate-500">
+                <tr><th class="p-3">Timestamp (UTC)</th><th class="p-3">Ticket ID</th><th class="p-3">Acción Registrada</th><th class="p-3">Usuario Ejecutor</th><th class="p-3">Rol</th></tr>
+              </thead>
+              <tbody class="divide-y font-medium">
+                <tr class="hover:bg-slate-50"><td class="p-3 font-mono text-[11px]">2026-10-15T15:10:00Z</td><td class="p-3 font-bold text-blue-700">#1045</td><td class="p-3">Auto-escalado por 3 intentos IA fallidos (FR-12)</td><td class="p-3">Sistema / AI-Service</td><td class="p-3"><span class="bg-purple-100 text-purple-900 px-2 py-0.5 rounded text-[10px] font-bold">AI_SYSTEM</span></td></tr>
+                <tr class="hover:bg-slate-50"><td class="p-3 font-mono text-[11px]">2026-10-15T14:45:12Z</td><td class="p-3 font-bold text-blue-700">#1042</td><td class="p-3">Asignación automática a técnico con menor carga</td><td class="p-3">Ricardo Hernández</td><td class="p-3"><span class="bg-blue-100 text-blue-900 px-2 py-0.5 rounded text-[10px] font-bold">TECHNICIAN</span></td></tr>
+                <tr class="hover:bg-slate-50"><td class="p-3 font-mono text-[11px]">2026-10-15T13:20:05Z</td><td class="p-3 font-bold text-blue-700">#1038</td><td class="p-3">Ticket cerrado satisfactoriamente por respuesta IA</td><td class="p-3">Carlos Méndez</td><td class="p-3"><span class="bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[10px] font-bold">END_USER</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    function setFrame(frameId) {
+      document.querySelectorAll('.screen-container').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById(frameId);
+      if (target) {
+        target.classList.add('active');
+      }
+      const select = document.querySelector('select');
+      if (select) select.value = frameId;
+    }
+
+    function showAllFrames() {
+      document.querySelectorAll('.screen-container').forEach(el => el.classList.add('active'));
+    }
+  </script>
+</body>
+</html>
