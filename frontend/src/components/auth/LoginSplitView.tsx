@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { AlertCircle, Loader2, ArrowRight, Lock, Mail, Eye, EyeOff, UserPlus, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Loader2, ArrowRight, Lock, Mail, Eye, EyeOff, UserPlus, CheckCircle2, Database } from 'lucide-react';
 import { AuthScreen, UserAccount } from '../../types/figma-tickets';
 import { getStoredUsers, saveNewUser } from '../../services/db';
+import { isSupabaseConfigured } from '../../services/supabaseClient';
 
 interface Props {
   initialState?: 'default' | 'error' | 'loading';
   onLoginSuccess?: (user: UserAccount) => void;
   onForgotPassword?: () => void;
   onNavigateState?: (screen: AuthScreen) => void;
+  onOpenDatabaseModal?: () => void;
 }
 
 export const LoginSplitView: React.FC<Props> = ({
   onLoginSuccess,
-  onForgotPassword
+  onForgotPassword,
+  onOpenDatabaseModal
 }) => {
   const shouldReduceMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -169,6 +172,26 @@ export const LoginSplitView: React.FC<Props> = ({
             transition={{ duration: 0.35, ease: 'easeOut' }}
             className="w-full max-w-md bg-white text-slate-800 rounded-2xl p-8 sm:p-10 shadow-2xl border border-slate-200"
           >
+            {/* Top Bar inside card with Database status */}
+            {onOpenDatabaseModal && (
+              <div className="flex justify-end mb-3">
+                <button
+                  type="button"
+                  onClick={onOpenDatabaseModal}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition flex items-center gap-1.5 cursor-pointer ${
+                    isSupabaseConfigured
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                      : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                  }`}
+                  title="Configuración de Base de Datos Cloud"
+                >
+                  <Database className="w-3 h-3" />
+                  <span>{isSupabaseConfigured ? 'BD Cloud: Conectada' : 'Conectar BD Supabase'}</span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                </button>
+              </div>
+            )}
+
             {/* Tabs: Iniciar Sesión / Crear Cuenta */}
             <div className="flex border-b border-slate-200 mb-6">
               <button

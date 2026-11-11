@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { HeaderBar } from './HeaderBar';
 import { EmployeeHomeView } from './views/EmployeeHomeView';
@@ -12,6 +12,7 @@ import { TechnicianKbView } from './views/TechnicianKbView';
 import { AdminDashboard } from './AdminDashboard';
 import { LoginSplitView } from './auth/LoginSplitView';
 import { AuthModalViews } from './auth/AuthModalViews';
+import { SupabaseConfigModal } from './SupabaseConfigModal';
 import { ActiveScreen, RoleMode, AuthScreen, TicketItem, TicketPriority, TicketStatus, TechnicianProfile, UserAccount, AppNotification } from '../types/figma-tickets';
 import {
   getStoredTickets,
@@ -23,7 +24,9 @@ import {
   getStoredUsers,
   saveNewUser,
   getStoredNotifications,
-  saveStoredNotifications
+  saveStoredNotifications,
+  syncTicketToCloud,
+  initSupabaseSync
 } from '../services/db';
 import { printExecutiveReport } from '../services/reportGenerator';
 import { Bell, X, CheckCircle2, MessageSquare, UserCheck, AlertTriangle } from 'lucide-react';
@@ -72,6 +75,23 @@ export const FigmaTicketsApp: React.FC = () => {
   const [notifications, setNotifications] = useState<AppNotification[]>(() => getStoredNotifications());
   const [liveToast, setLiveToast] = useState<AppNotification | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string>('TCK-1048');
+  const [isDbModalOpen, setIsDbModalOpen] = useState<boolean>(false);
+
+  // Sincronización en Tiempo Real con Supabase (PostgreSQL Cloud)
+  useEffect(() => {
+    const unsubscribe = initSupabaseSync(
+      (cloudTickets) => {
+        setTickets(cloudTickets);
+      },
+      (newNotif) => {
+        setNotifications((prev) => [newNotif, ...prev]);
+        setLiveToast(newNotif);
+      }
+    );
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Disparar notificación en tiempo real con banner flotante (Toast)
   const triggerNotification = (notifData: Omit<AppNotification, 'id' | 'timestamp' | 'leida'>) => {
@@ -201,6 +221,7 @@ export const FigmaTicketsApp: React.FC = () => {
     const updated = [newTicket, ...tickets];
     setTickets(updated);
     saveStoredTickets(updated);
+    syncTicketToCloud(newTicket);
     setSelectedTicketId(newId);
     setCurrentScreen('empleado_detalle');
 
@@ -216,10 +237,11 @@ export const FigmaTicketsApp: React.FC = () => {
   const handleResolveTicket = (ticketId: string) => {
     const actorName = currentUser?.nombre || 'Técnico Especialista';
     const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let resolvedTicket: TicketItem | null = null;
     const updated = tickets.map((t) => {
       if (t.id === ticketId) {
         const prevAudit = t.historialAuditoria || [];
-        return {
+        const item: TicketItem = {
           ...t,
           estado: 'Resuelto' as TicketStatus,
           historialAuditoria: [
@@ -227,11 +249,14 @@ export const FigmaTicketsApp: React.FC = () => {
             ...prevAudit
           ]
         };
+        resolvedTicket = item;
+        return item;
       }
       return t;
     });
     setTickets(updated);
     saveStoredTickets(updated);
+    if (resolvedTicket) syncTicketToCloud(resolvedTicket);
 
     triggerNotification({
       titulo: `🎉 Ticket ${ticketId} Resuelto`,
@@ -246,10 +271,11 @@ export const FigmaTicketsApp: React.FC = () => {
   const handleAssignTicket = (ticketId: string, techName: string) => {
     const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const actorName = currentUser?.nombre || (currentRole === 'admin' ? 'Ing. Bautista (Admin)' : 'Técnico TI');
+    let assignedTicket: TicketItem | null = null;
     const updated = tickets.map((t) => {
       if (t.id === ticketId) {
         const prevAudit = t.historialAuditoria || [];
-        return {
+        const item: TicketItem = {
           ...t,
           asignacion: techName,
           estado: 'En progreso' as TicketStatus,
@@ -258,11 +284,14 @@ export const FigmaTicketsApp: React.FC = () => {
             ...prevAudit
           ]
         };
+        assignedTicket = item;
+        return item;
       }
       return t;
     });
     setTickets(updated);
     saveStoredTickets(updated);
+    if (assignedTicket) syncTicketToCloud(assignedTicket);
 
     triggerNotification({
       titulo: `📌 Ticket ${ticketId} Asignado`,
@@ -300,11 +329,12 @@ export const FigmaTicketsApp: React.FC = () => {
   const handleAddNote = (ticketId: string, noteText: string) => {
     const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const author = currentUser?.nombre || 'Técnico Especialista';
+    let targetTicket: TicketItem | null = null;
     const updated = tickets.map((t) => {
       if (t.id === ticketId) {
         const prevNotes = t.notasInternas || [];
         const prevAudit = t.historialAuditoria || [];
-        return {
+        const item: TicketItem = {
           ...t,
           notasInternas: [...prevNotes, noteText],
           historialAuditoria: [
@@ -312,11 +342,14 @@ export const FigmaTicketsApp: React.FC = () => {
             ...prevAudit
           ]
         };
+        targetTicket = item;
+        return item;
       }
       return t;
     });
     setTickets(updated);
     saveStoredTickets(updated);
+    if (targetTicket) syncTicketToCloud(targetTicket);
   };
 
   // Agregar comentario público al ticket (visible para solicitante, técnicos y admin)
@@ -332,11 +365,12 @@ export const FigmaTicketsApp: React.FC = () => {
       fecha: nowStr
     };
 
+    let targetTicket: TicketItem | null = null;
     const updated = tickets.map((t) => {
       if (t.id === ticketId) {
         const prevComments = t.comentariosPublicos || [];
         const prevAudit = t.historialAuditoria || [];
-        return {
+        const item: TicketItem = {
           ...t,
           comentariosPublicos: [...prevComments, newComment],
           historialAuditoria: [
@@ -344,11 +378,14 @@ export const FigmaTicketsApp: React.FC = () => {
             ...prevAudit
           ]
         };
+        targetTicket = item;
+        return item;
       }
       return t;
     });
     setTickets(updated);
     saveStoredTickets(updated);
+    if (targetTicket) syncTicketToCloud(targetTicket);
 
     triggerNotification({
       titulo: `💬 Nuevo Comentario (${author})`,
@@ -371,6 +408,7 @@ export const FigmaTicketsApp: React.FC = () => {
               onLoginSuccess={handleLoginSuccess}
               onForgotPassword={() => handleNavigate('auth_recuperar')}
               onNavigateState={handleNavigate}
+              onOpenDatabaseModal={() => setIsDbModalOpen(true)}
             />
           )}
 
@@ -401,6 +439,7 @@ export const FigmaTicketsApp: React.FC = () => {
               notifications={notifications}
               onMarkAllAsRead={handleMarkAllNotificationsRead}
               onSelectNotification={handleSelectNotification}
+              onOpenDatabaseModal={() => setIsDbModalOpen(true)}
             />
 
             <div className="flex-1 p-6 lg:p-8 max-w-7xl w-full mx-auto">
@@ -507,6 +546,12 @@ export const FigmaTicketsApp: React.FC = () => {
           </main>
         </div>
       )}
+
+      {/* MODAL CONFIGURACIÓN SUPABASE CLOUD */}
+      <SupabaseConfigModal
+        isOpen={isDbModalOpen}
+        onClose={() => setIsDbModalOpen(false)}
+      />
 
       {/* FLOATING LIVE TOAST NOTIFICATION ("resalte la notificación") */}
       {liveToast && (

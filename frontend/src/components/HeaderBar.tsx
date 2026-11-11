@@ -9,9 +9,11 @@ import {
   UserCheck,
   AlertTriangle,
   CheckCircle2,
-  X
+  X,
+  Database
 } from 'lucide-react';
 import { ActiveScreen, UserAccount, AppNotification } from '../types/figma-tickets';
+import { isSupabaseConfigured } from '../services/supabaseClient';
 
 interface Props {
   currentScreen: ActiveScreen;
@@ -19,6 +21,7 @@ interface Props {
   notifications?: AppNotification[];
   onMarkAllAsRead?: () => void;
   onSelectNotification?: (notif: AppNotification) => void;
+  onOpenDatabaseModal?: () => void;
 }
 
 export const HeaderBar: React.FC<Props> = ({
@@ -26,7 +29,8 @@ export const HeaderBar: React.FC<Props> = ({
   currentUser,
   notifications = [],
   onMarkAllAsRead,
-  onSelectNotification
+  onSelectNotification,
+  onOpenDatabaseModal
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -132,6 +136,26 @@ export const HeaderBar: React.FC<Props> = ({
           <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
           <span>{roleMeta.label}</span>
         </div>
+
+        {/* Database Status Button */}
+        {onOpenDatabaseModal && (
+          <button
+            type="button"
+            onClick={onOpenDatabaseModal}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition cursor-pointer ${
+              isSupabaseConfigured
+                ? 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/70'
+                : 'bg-amber-950/70 border-amber-500/50 text-amber-300 hover:bg-amber-900/70'
+            }`}
+            title="Estado de sincronización de Base de Datos Cloud"
+          >
+            <Database className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">
+              {isSupabaseConfigured ? 'BD Cloud: Conectada' : 'Conectar BD Cloud'}
+            </span>
+            <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+          </button>
+        )}
 
         <button
           type="button"

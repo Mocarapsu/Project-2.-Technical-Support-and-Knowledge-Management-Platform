@@ -1,10 +1,11 @@
 /**
  * BASE DE DATOS LOCAL Y PERSISTENCIA (RIALSA)
- * Maneja usuarios, tickets, notas y técnicos con persistencia en localStorage.
- * Inicializado con los datos oficiales del schema.sql de la Universidad / GID.
+ * Maneja usuarios, tickets, notas, técnicos y notificaciones.
+ * Soporta arquitectura híbrida: LocalStorage + Supabase Cloud (PostgreSQL Realtime).
  */
 
-import { UserAccount, TicketItem, TechnicianProfile, RoleMode, TicketPriority, AppNotification } from '../types/figma-tickets';
+import { UserAccount, TicketItem, TechnicianProfile, RoleMode, AppNotification } from '../types/figma-tickets';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 const USERS_STORAGE_KEY = 'rialsa_db_users_v1';
 const CURRENT_USER_KEY = 'rialsa_db_current_user_v1';
@@ -124,10 +125,19 @@ export const DEFAULT_TICKETS: TicketItem[] = [
     solicitante: 'Carlos Operador Planta',
     prioridad: 'Crítica',
     categoria: 'Software',
-    estado: 'Abierto',
-    asignacion: 'Sin asignar',
+    estado: 'Resuelto',
+    asignacion: 'Salvador Rivera Delgado',
     fechaCreacion: '15 oct 2026 - 08:30',
-    slaRestante: '00 h 45 min'
+    slaRestante: '00 h 00 min',
+    comentariosPublicos: [
+      {
+        id: 'COM-00',
+        autor: 'Carlos Operador Planta',
+        rol: 'empleado',
+        texto: 'Muchas gracias, ya pudimos facturar correctamente.',
+        fecha: '15 oct 2026 - 11:20'
+      }
+    ]
   },
   {
     id: 'TCK-1046',
@@ -170,14 +180,24 @@ export const DEFAULT_TICKETS: TicketItem[] = [
         fecha: '15 oct 2026 - 09:30'
       }
     ]
+  },
+  {
+    id: 'TCK-1049',
+    asunto: 'Fallo de red en conmutador planta',
+    solicitante: 'Carlos Operador Planta',
+    prioridad: 'Baja',
+    categoria: 'Redes',
+    estado: 'En progreso',
+    asignacion: 'Carlos Mendoza',
+    fechaCreacion: '15 oct 2026 - 08:45',
+    slaRestante: '07 h 30 min'
   }
 ];
 
 // ====================================================================
-// FUNCIONES CRUD CON LOCALSTORAGE
+// FUNCIONES CRUD CON LOCALSTORAGE (Fallback & Cache Inmediato)
 // ====================================================================
 
-// Obtener todos los usuarios
 export function getStoredUsers(): (UserAccount & { password?: string })[] {
   try {
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
@@ -191,7 +211,6 @@ export function getStoredUsers(): (UserAccount & { password?: string })[] {
   }
 }
 
-// Guardar o registrar un usuario nuevo
 export function saveNewUser(user: {
   nombre: string;
   email: string;
@@ -213,7 +232,6 @@ export function saveNewUser(user: {
     password: user.password || 'Password123!'
   };
 
-  // Si ya existía por email, actualizarlo
   const existingIdx = users.findIndex((u) => u.email === newUser.email);
   if (existingIdx >= 0) {
     users[existingIdx] = newUser;
@@ -223,15 +241,27 @@ export function saveNewUser(user: {
 
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
 
-  // Si es técnico, darlo de alta también en el pool de técnicos
   if (newUser.rol === 'tecnico') {
     addTechnicianFromUser(newUser);
+  }
+
+  // Sincronizar en segundo plano con Supabase si está disponible
+  if (isSupabaseConfigured && supabase) {
+    supabase.from('users').upsert({
+      id: newUser.id,
+      nombre: newUser.nombre,
+      email: newUser.email,
+      rol: newUser.rol,
+      departamento: newUser.departamento,
+      estado: newUser.estado,
+      fecha_registro: newUser.fechaRegistro,
+      password: newUser.password
+    }).then();
   }
 
   return newUser;
 }
 
-// Obtener el usuario en sesión actual (null si no ha iniciado sesión)
 export function getCurrentSessionUser(): UserAccount | null {
   try {
     const raw = localStorage.getItem(CURRENT_USER_KEY);
@@ -240,7 +270,6 @@ export function getCurrentSessionUser(): UserAccount | null {
   return null;
 }
 
-// Establecer el usuario en sesión actual
 export function setCurrentSessionUser(user: UserAccount | null) {
   if (!user) {
     localStorage.removeItem(CURRENT_USER_KEY);
@@ -249,7 +278,6 @@ export function setCurrentSessionUser(user: UserAccount | null) {
   }
 }
 
-// Obtener los tickets persistentes
 export function getStoredTickets(): TicketItem[] {
   try {
     const raw = localStorage.getItem(TICKETS_STORAGE_KEY);
@@ -263,14 +291,12 @@ export function getStoredTickets(): TicketItem[] {
   }
 }
 
-// Guardar lista de tickets
 export function saveStoredTickets(tickets: TicketItem[]) {
   try {
     localStorage.setItem(TICKETS_STORAGE_KEY, JSON.stringify(tickets));
   } catch {}
 }
 
-// Obtener los técnicos persistentes
 export function getStoredTechnicians(): TechnicianProfile[] {
   try {
     const raw = localStorage.getItem(TECHS_STORAGE_KEY);
@@ -284,7 +310,6 @@ export function getStoredTechnicians(): TechnicianProfile[] {
   }
 }
 
-// Guardar lista de técnicos
 export function saveStoredTechnicians(techs: TechnicianProfile[]) {
   try {
     localStorage.setItem(TECHS_STORAGE_KEY, JSON.stringify(techs));
@@ -305,10 +330,22 @@ function addTechnicianFromUser(user: UserAccount) {
     };
     techs.push(newTech);
     saveStoredTechnicians(techs);
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('technicians').upsert({
+        id: newTech.id,
+        nombre: newTech.nombre,
+        email: newTech.email,
+        especialidad: newTech.especialidad,
+        nivel: newTech.nivel,
+        tickets_activos: 0,
+        estado: newTech.estado
+      }).then();
+    }
   }
 }
 
-// 5. Notificaciones Iniciales y Persistentes
+// 4. Notificaciones
 export const DEFAULT_NOTIFICATIONS: AppNotification[] = [
   {
     id: 'NOTIF-1',
@@ -361,3 +398,173 @@ export function saveStoredNotifications(notifs: AppNotification[]) {
   } catch {}
 }
 
+// ====================================================================
+// CAPA DE SINCRONIZACIÓN EN TIEMPO REAL CON SUPABASE (POSTGRESQL CLOUD)
+// ====================================================================
+
+/**
+ * Convierte un registro de PostgreSQL de Supabase al formato TicketItem de la app
+ */
+export function mapRowToTicket(row: any): TicketItem {
+  return {
+    id: row.id,
+    asunto: row.asunto,
+    solicitante: row.solicitante,
+    prioridad: row.prioridad,
+    categoria: row.categoria,
+    estado: row.estado,
+    asignacion: row.asignacion,
+    departamento: row.departamento || undefined,
+    fechaCreacion: row.fecha_creacion || undefined,
+    slaRestante: row.sla_restante || undefined,
+    notasInternas: Array.isArray(row.notas_internas) ? row.notas_internas : [],
+    comentariosPublicos: Array.isArray(row.comentarios_publicos) ? row.comentarios_publicos : [],
+    historialAuditoria: Array.isArray(row.historial_auditoria) ? row.historial_auditoria : []
+  };
+}
+
+/**
+ * Convierte un TicketItem al formato de fila para la tabla tickets en PostgreSQL
+ */
+export function mapTicketToRow(ticket: TicketItem): any {
+  return {
+    id: ticket.id,
+    asunto: ticket.asunto,
+    solicitante: ticket.solicitante,
+    prioridad: ticket.prioridad,
+    categoria: ticket.categoria,
+    estado: ticket.estado,
+    asignacion: ticket.asignacion,
+    departamento: ticket.departamento || '',
+    fecha_creacion: ticket.fechaCreacion || '',
+    sla_restante: ticket.slaRestante || '',
+    notas_internas: ticket.notasInternas || [],
+    comentarios_publicos: ticket.comentariosPublicos || [],
+    historial_auditoria: ticket.historialAuditoria || []
+  };
+}
+
+/**
+ * Sube o actualiza un ticket en Supabase Cloud
+ */
+export async function syncTicketToCloud(ticket: TicketItem): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const row = mapTicketToRow(ticket);
+    const { error } = await supabase.from('tickets').upsert(row);
+    if (error) {
+      console.error('Error sincronizando ticket en Supabase:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Fallo de red en syncTicketToCloud:', err);
+    return false;
+  }
+}
+
+/**
+ * Sube o actualiza una notificación en Supabase Cloud
+ */
+export async function syncNotificationToCloud(notif: AppNotification): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { error } = await supabase.from('notifications').upsert({
+      id: notif.id,
+      titulo: notif.titulo,
+      mensaje: notif.mensaje,
+      tipo: notif.tipo,
+      ticket_id: notif.ticketId || null,
+      destinatario_rol: notif.destinatarioRol,
+      destinatario_usuario: notif.destinatarioUsuario || null,
+      leida: notif.leida,
+      timestamp: notif.timestamp
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Descarga todos los tickets remotos de Supabase
+ */
+export async function fetchRemoteTickets(): Promise<TicketItem[] | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('tickets')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return null;
+
+    const cloudTickets = data.map(mapRowToTicket);
+    saveStoredTickets(cloudTickets);
+    return cloudTickets;
+  } catch (err) {
+    console.warn('No fue posible descargar tickets remotos:', err);
+    return null;
+  }
+}
+
+/**
+ * Inicializa la sincronización de WebSockets en tiempo real
+ */
+export function initSupabaseSync(
+  onTicketsChanged: (tickets: TicketItem[]) => void,
+  onNotificationReceived?: (notif: AppNotification) => void
+): () => void {
+  if (!isSupabaseConfigured || !supabase) {
+    return () => {};
+  }
+
+  // 1. Descarga inicial en vivo
+  fetchRemoteTickets().then((cloudTickets) => {
+    if (cloudTickets && cloudTickets.length > 0) {
+      onTicketsChanged(cloudTickets);
+    }
+  });
+
+  // 2. Suscripción en Tiempo Real (WebSockets de PostgreSQL)
+  const channel = supabase
+    .channel('rialsa_cloud_sync')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'tickets' },
+      async () => {
+        const freshTickets = await fetchRemoteTickets();
+        if (freshTickets) {
+          onTicketsChanged(freshTickets);
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'notifications' },
+      (payload) => {
+        if (onNotificationReceived && payload.new) {
+          const row = payload.new;
+          const notif: AppNotification = {
+            id: row.id,
+            titulo: row.titulo,
+            mensaje: row.mensaje,
+            tipo: row.tipo,
+            ticketId: row.ticket_id || undefined,
+            destinatarioRol: row.destinatario_rol,
+            destinatarioUsuario: row.destinatario_usuario || undefined,
+            leida: row.leida,
+            timestamp: row.timestamp
+          };
+          onNotificationReceived(notif);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    if (supabase) {
+      supabase.removeChannel(channel);
+    }
+  };
+}
