@@ -111,3 +111,4 @@ VALUES
 ('TCK-1048', 'Sin conexión VPN laptop fuera de oficina', 'Carlos Operador Planta', 'Alta', 'Acceso', 'En progreso', 'Mesa de ayuda - Nivel 1', 'Operaciones y Planta 1', '15 oct 2026', '02 h 10 min', '[]'::jsonb, '[]'::jsonb, '["15 Oct 09:10 · Ticket escalado desde RIALSA IA"]'::jsonb),
 ('TCK-1049', 'Fallo de red en conmutador planta', 'Carlos Operador Planta', 'Baja', 'Redes', 'En progreso', 'Carlos Mendoza', 'Operaciones y Planta 1', '15 oct 2026', '07 h 30 min', '[]'::jsonb, '[]'::jsonb, '["15 Oct 08:45 · Ticket generado"]'::jsonb)
 ON CONFLICT (id) DO NOTHING;
+

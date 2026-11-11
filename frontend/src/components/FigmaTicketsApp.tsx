@@ -132,22 +132,54 @@ export const FigmaTicketsApp: React.FC = () => {
   const isAuthScreen = currentScreen.startsWith('auth_');
 
   const handleNavigate = (screen: ActiveScreen) => {
-    setCurrentScreen(screen);
-    if (screen.startsWith('empleado')) {
-      setCurrentRole('empleado');
-      setIsAuthenticated(true);
-    } else if (screen.startsWith('tecnico')) {
-      setCurrentRole('tecnico');
-      setIsAuthenticated(true);
-    } else if (screen.startsWith('admin')) {
-      setCurrentRole('admin');
-      setIsAuthenticated(true);
-    } else if (screen.startsWith('auth_')) {
+    if (screen.startsWith('auth_')) {
       setIsAuthenticated(false);
+      setCurrentScreen(screen);
+      return;
     }
+
+    const effectiveRole = currentUser?.rol || currentRole;
+
+    // RBAC GUARD (BUG-001): Restricción estricta de rutas por rol
+    if (effectiveRole === 'empleado') {
+      if (screen === 'tecnico_cola' || screen === 'tecnico_detalle' || screen.startsWith('admin')) {
+        console.warn(`[RBAC Guard] Bloqueado acceso a ${screen} para usuario con rol Empleado.`);
+        triggerNotification({
+          titulo: '🚫 Acceso No Autorizado (RBAC)',
+          mensaje: 'Tu perfil de Empleado no tiene permisos para acceder a la cola técnica ni a funciones de resolución.',
+          tipo: 'alerta',
+          destinatarioRol: 'empleado'
+        });
+        setCurrentScreen('empleado_inicio');
+        return;
+      }
+    } else if (effectiveRole === 'tecnico') {
+      if (screen.startsWith('admin')) {
+        console.warn(`[RBAC Guard] Bloqueado acceso a ${screen} para usuario con rol Técnico.`);
+        triggerNotification({
+          titulo: '🚫 Permisos Insuficientes',
+          mensaje: 'Se requiere rol Administrador TI (CISO) para acceder a este módulo.',
+          tipo: 'alerta',
+          destinatarioRol: 'tecnico'
+        });
+        setCurrentScreen('tecnico_cola');
+        return;
+      }
+    }
+
+    // SEGURIDAD: Nunca mutar el rol del usuario durante la navegación.
+    setCurrentScreen(screen);
+    setIsAuthenticated(true);
   };
 
   const handleRoleToggle = (role: RoleMode) => {
+    // Si el usuario ya está autenticado, su rol está protegido y no se puede alterar en caliente
+    if (currentUser) {
+      if (currentUser.rol !== role) {
+        console.warn(`[RBAC] No se permite alterar el rol asignado a la sesión (${currentUser.rol} -> ${role}).`);
+        return;
+      }
+    }
     setCurrentRole(role);
     if (role === 'empleado') {
       setCurrentScreen('empleado_inicio');
@@ -173,9 +205,14 @@ export const FigmaTicketsApp: React.FC = () => {
     setCurrentRole(resolvedUser.rol);
     setIsAuthenticated(true);
 
-    if (resolvedUser.rol === 'empleado') setCurrentScreen('empleado_inicio');
-    else if (resolvedUser.rol === 'tecnico') setCurrentScreen('tecnico_cola');
-    else if (resolvedUser.rol === 'admin') setCurrentScreen('admin_dashboard');
+    // Enrutamiento inicial exacto según rol (BUG-002)
+    if (resolvedUser.rol === 'empleado') {
+      setCurrentScreen('empleado_inicio');
+    } else if (resolvedUser.rol === 'tecnico') {
+      setCurrentScreen('tecnico_cola');
+    } else if (resolvedUser.rol === 'admin') {
+      setCurrentScreen('admin_dashboard');
+    }
   };
 
   const handleLogout = () => {
@@ -202,18 +239,34 @@ export const FigmaTicketsApp: React.FC = () => {
     const activeLoad = tickets.filter((t) => t.asignacion === assignedTech && t.estado !== 'Resuelto').length;
     const creatorName = currentUser?.nombre || 'Empleado RIALSA';
 
+    // Validación obligatoria de datos requeridos (BUG-003)
+    const cleanAsunto = data.asunto?.trim();
+    const cleanDesc = data.descripcion?.trim();
+    if (!cleanAsunto || cleanAsunto.length < 5 || !cleanDesc || cleanDesc.length < 10) {
+      triggerNotification({
+        titulo: '⚠️ Campos Obligatorios Incompletos',
+        mensaje: 'El asunto (mínimo 5 letras) y la descripción (mínimo 10 letras) son estrictamente requeridos.',
+        tipo: 'alerta',
+        destinatarioRol: 'empleado'
+      });
+      return;
+    }
+
     const newTicket: TicketItem = {
       id: newId,
-      asunto: data.asunto,
+      asunto: cleanAsunto,
       solicitante: creatorName,
       prioridad: (data.prioridad as TicketPriority) || 'Media',
       categoria: data.categoria || 'Acceso',
       estado: 'En progreso',
       asignacion: assignedTech,
       fechaCreacion: 'Hoy - En vivo',
-      slaRestante: '04 h 00 min',
+      slaRestante: data.prioridad === 'Crítica' ? '01 h 00 min' : data.prioridad === 'Alta' ? '04 h 00 min' : '08 h 00 min',
+      comentariosPublicos: [], // Inicializado para evitar problemas de contador (BUG-009)
+      notasInternas: [],
       historialAuditoria: [
         `Ticket creado por ${creatorName} (${currentUser?.departamento || 'Operaciones'})`,
+        `Descripción inicial: "${cleanDesc.length > 50 ? cleanDesc.slice(0, 50) + '...' : cleanDesc}"`,
         `Asignado automáticamente por algoritmo Least-Loaded a ${assignedTech} (Carga activa previa: ${activeLoad} tickets)`
       ]
     };

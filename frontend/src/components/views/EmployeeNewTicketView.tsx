@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { UploadCloud, Sparkles, CheckCircle2, ArrowRight } from 'lucide-react';
+import { UploadCloud, Sparkles, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
 
 interface Props {
   onCancel?: () => void;
@@ -21,14 +21,44 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
   const [descripcion, setDescripcion] = useState('');
   const [categoria, setCategoria] = useState('');
   const [prioridad, setPrioridad] = useState('');
+  const [errors, setErrors] = useState<{ asunto?: string; descripcion?: string; categoria?: string; prioridad?: string }>({});
+
+  const validate = (): boolean => {
+    const newErrors: { asunto?: string; descripcion?: string; categoria?: string; prioridad?: string } = {};
+
+    if (!asunto.trim()) {
+      newErrors.asunto = 'El asunto del ticket es obligatorio.';
+    } else if (asunto.trim().length < 5) {
+      newErrors.asunto = 'El asunto debe tener al menos 5 caracteres explicativos.';
+    }
+
+    if (!descripcion.trim()) {
+      newErrors.descripcion = 'La descripción del incidente es obligatoria.';
+    } else if (descripcion.trim().length < 10) {
+      newErrors.descripcion = 'Por favor describe qué sucedió (mínimo 10 caracteres).';
+    }
+
+    if (!categoria) {
+      newErrors.categoria = 'Debes seleccionar una categoría técnica.';
+    }
+
+    if (!prioridad) {
+      newErrors.prioridad = 'Debes seleccionar la prioridad estimada.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleCreate = () => {
+    if (!validate()) return;
+
     if (onSubmitTicket) {
       onSubmitTicket({
-        asunto: asunto.trim() || 'Sin asunto especificado',
-        descripcion: descripcion.trim() || 'Sin descripción adicional.',
-        categoria: categoria || 'Acceso',
-        prioridad: prioridad || 'Media'
+        asunto: asunto.trim(),
+        descripcion: descripcion.trim(),
+        categoria,
+        prioridad
       });
     } else {
       onSubmitSuccess?.();
@@ -83,36 +113,60 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
         <div className="lg:col-span-8 space-y-5">
           {/* Asunto */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Asunto</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+              <span>Asunto <span className="text-red-500">*</span></span>
+              {errors.asunto && <span className="text-[11px] text-red-600 font-medium flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.asunto}</span>}
+            </label>
             <input
               type="text"
               value={asunto}
-              onChange={(e) => setAsunto(e.target.value)}
-              placeholder="Describe brevemente el problema"
-              className="w-full text-xs border border-slate-300 rounded-lg px-3.5 py-2.5 text-slate-900 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+              onChange={(e) => {
+                setAsunto(e.target.value);
+                if (errors.asunto) setErrors((prev) => ({ ...prev, asunto: undefined }));
+              }}
+              placeholder="Describe brevemente el problema (ej: Fallo en impresora térmica de almacén)"
+              className={`w-full text-xs border rounded-lg px-3.5 py-2.5 text-slate-900 bg-white placeholder-slate-400 focus:outline-none transition ${
+                errors.asunto ? 'border-red-500 ring-2 ring-red-200' : 'border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600'
+              }`}
             />
           </div>
 
           {/* Descripción */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Descripción</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+              <span>Descripción detallada <span className="text-red-500">*</span></span>
+              {errors.descripcion && <span className="text-[11px] text-red-600 font-medium flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.descripcion}</span>}
+            </label>
             <textarea
               rows={4}
               value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Indica qué estabas haciendo, el mensaje de error y cuándo comenzó el problema..."
-              className="w-full text-xs border border-slate-300 rounded-lg p-3.5 text-slate-900 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+              onChange={(e) => {
+                setDescripcion(e.target.value);
+                if (errors.descripcion) setErrors((prev) => ({ ...prev, descripcion: undefined }));
+              }}
+              placeholder="Indica qué estabas haciendo, el mensaje de error exacto y cuándo comenzó el problema..."
+              className={`w-full text-xs border rounded-lg p-3.5 text-slate-900 bg-white placeholder-slate-400 focus:outline-none transition ${
+                errors.descripcion ? 'border-red-500 ring-2 ring-red-200' : 'border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600'
+              }`}
             />
           </div>
 
           {/* Categoría y Prioridad */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Categoría</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+                <span>Categoría <span className="text-red-500">*</span></span>
+                {errors.categoria && <span className="text-[10px] text-red-600 font-medium">{errors.categoria}</span>}
+              </label>
               <select
                 value={categoria}
-                onChange={(e) => setCategoria(e.target.value)}
-                className="w-full text-xs border border-slate-300 rounded-lg px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition text-slate-700"
+                onChange={(e) => {
+                  setCategoria(e.target.value);
+                  if (errors.categoria) setErrors((prev) => ({ ...prev, categoria: undefined }));
+                }}
+                className={`w-full text-xs border rounded-lg px-3.5 py-2.5 bg-white focus:outline-none transition text-slate-700 ${
+                  errors.categoria ? 'border-red-500 ring-2 ring-red-200' : 'border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600'
+                }`}
               >
                 <option value="">Selecciona una categoría</option>
                 <option value="Acceso">Acceso y Credenciales</option>
@@ -122,11 +176,19 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Prioridad</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+                <span>Prioridad <span className="text-red-500">*</span></span>
+                {errors.prioridad && <span className="text-[10px] text-red-600 font-medium">{errors.prioridad}</span>}
+              </label>
               <select
                 value={prioridad}
-                onChange={(e) => setPrioridad(e.target.value)}
-                className="w-full text-xs border border-slate-300 rounded-lg px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition text-slate-700"
+                onChange={(e) => {
+                  setPrioridad(e.target.value);
+                  if (errors.prioridad) setErrors((prev) => ({ ...prev, prioridad: undefined }));
+                }}
+                className={`w-full text-xs border rounded-lg px-3.5 py-2.5 bg-white focus:outline-none transition text-slate-700 ${
+                  errors.prioridad ? 'border-red-500 ring-2 ring-red-200' : 'border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600'
+                }`}
               >
                 <option value="">Selecciona la prioridad</option>
                 <option value="Baja">Baja</option>

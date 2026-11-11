@@ -25,13 +25,31 @@ export const AuthModalViews: React.FC<Props> = ({
   onBackToLogin = () => {}
 }) => {
   const shouldReduceMotion = useReducedMotion();
-  const [email, setEmail] = useState('carlos.mendez@gid.com.mx');
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const modalVariants = {
     hidden: { opacity: 0, scale: shouldReduceMotion ? 1 : 0.95, y: shouldReduceMotion ? 0 : 15 },
     visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.3 } }
+  };
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const handleSendRecovery = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setEmailError('Ingresa tu correo electrónico institucional.');
+      return;
+    }
+    if (!emailRegex.test(email.trim().toLowerCase())) {
+      setEmailError('Ingresa un correo institucional válido (ej. usuario@gid.com.mx).');
+      return;
+    }
+    setEmailError(null);
+    onNavigate('auth_recuperacion_enviada');
   };
 
   return (
@@ -40,63 +58,19 @@ export const AuthModalViews: React.FC<Props> = ({
       {/* Top Header */}
       <div className="flex justify-between items-center text-xs border-b border-slate-800/80 pb-4 mb-6">
         <div className="flex items-center gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+          <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
           <span className="font-mono text-slate-400 text-[11px] font-semibold tracking-wider">
-            AUTH / MODAL FLOW
+            PORTAL INSTITUCIONAL RIALSA · RECUPERACIÓN DE CUENTA
           </span>
         </div>
 
-        {/* Quick Modal Switcher */}
-        <div className="flex flex-wrap items-center gap-1.5 bg-[#14171f] p-1 rounded-lg border border-slate-800">
-          <button
-            onClick={() => onNavigate('auth_recuperar')}
-            className={`px-2 py-0.5 rounded text-[11px] transition ${
-              currentScreen === 'auth_recuperar' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Recuperar contraseña
-          </button>
-          <button
-            onClick={() => onNavigate('auth_recuperacion_enviada')}
-            className={`px-2 py-0.5 rounded text-[11px] transition ${
-              currentScreen === 'auth_recuperacion_enviada' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Correo enviado
-          </button>
-          <button
-            onClick={() => onNavigate('auth_nueva_password')}
-            className={`px-2 py-0.5 rounded text-[11px] transition ${
-              currentScreen === 'auth_nueva_password' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Nueva contraseña
-          </button>
-          <button
-            onClick={() => onNavigate('auth_password_actualizada')}
-            className={`px-2 py-0.5 rounded text-[11px] transition ${
-              currentScreen === 'auth_password_actualizada' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Contraseña OK
-          </button>
-          <button
-            onClick={() => onNavigate('auth_sesion_expirada')}
-            className={`px-2 py-0.5 rounded text-[11px] transition ${
-              currentScreen === 'auth_sesion_expirada' ? 'bg-amber-600 text-white font-bold' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Sesión expirada
-          </button>
-          <button
-            onClick={() => onNavigate('auth_acceso_denegado')}
-            className={`px-2 py-0.5 rounded text-[11px] transition ${
-              currentScreen === 'auth_acceso_denegado' ? 'bg-red-600 text-white font-bold' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Acceso denegado
-          </button>
-        </div>
+        <button
+          onClick={onBackToLogin}
+          className="text-slate-400 hover:text-white flex items-center gap-1.5 transition text-xs font-semibold cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Volver al Login</span>
+        </button>
       </div>
 
       {/* Main Centered Content */}

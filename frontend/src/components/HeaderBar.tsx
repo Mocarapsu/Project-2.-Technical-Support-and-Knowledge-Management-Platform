@@ -178,8 +178,8 @@ export const HeaderBar: React.FC<Props> = ({
                 : 'bg-[#1a1e28] text-slate-300 border-slate-700/50 hover:bg-[#202533]'
             }`}
           >
-            <Bell className={`w-3.5 h-3.5 ${unreadCount > 0 ? 'text-blue-400 animate-pulse' : 'text-slate-400'}`} />
-            <span>Notificaciones</span>
+            <Bell className={`w-3.5 h-3.5 flex-shrink-0 ${unreadCount > 0 ? 'text-blue-400 animate-pulse' : 'text-slate-400'}`} />
+            <span className="whitespace-nowrap">Notificaciones</span>
             {unreadCount > 0 ? (
               <span className="bg-red-500 text-white font-black px-1.5 py-0.2 rounded-full text-[9px] animate-pulse">
                 {unreadCount}
@@ -195,9 +195,11 @@ export const HeaderBar: React.FC<Props> = ({
           {showDropdown && (
             <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#0e121a] border border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-50 text-slate-200">
               <div className="p-3.5 bg-[#141a26] border-b border-slate-700/80 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-blue-400" />
-                  <span className="font-bold text-xs text-white">Notificaciones ({unreadCount} nuevas)</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Bell className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                  <span className="font-bold text-xs text-white whitespace-nowrap">
+                    {unreadCount > 0 ? `Notificaciones (${unreadCount} nuevas)` : 'Notificaciones al día'}
+                  </span>
                 </div>
                 {unreadCount > 0 && (
                   <button

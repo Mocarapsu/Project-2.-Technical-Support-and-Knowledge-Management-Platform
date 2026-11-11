@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { BookOpen, Search, Filter, Tag, Eye, ArrowUpRight, X, Sparkles } from 'lucide-react';
 import { KbArticle } from '../../types/figma-tickets';
@@ -51,6 +51,17 @@ export const TechnicianKbView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [activeArticle, setActiveArticle] = useState<KbArticle | null>(null);
+
+  // BUG-013: Soporte para cerrar modal con tecla Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && activeArticle) {
+        setActiveArticle(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeArticle]);
 
   const filtered = KB_ARTICLES.filter((a) => {
     const matchesSearch =
@@ -161,10 +172,18 @@ export const TechnicianKbView: React.FC = () => {
         ))}
       </div>
 
-      {/* Article Reader Modal */}
+      {/* Article Reader Modal (BUG-013: Cierre por clic en backdrop o Escape) */}
       {activeArticle && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in duration-200">
+        <div
+          onClick={() => setActiveArticle(null)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 cursor-pointer"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in duration-200 cursor-default"
+          >
             <div className="flex justify-between items-start border-b border-slate-100 pb-4">
               <div>
                 <span className="text-xs font-bold text-blue-700 font-mono bg-blue-50 px-2 py-0.5 rounded">

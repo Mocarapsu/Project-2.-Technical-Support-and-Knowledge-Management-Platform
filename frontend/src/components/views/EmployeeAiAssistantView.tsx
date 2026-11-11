@@ -65,6 +65,15 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const getUserInitials = () => {
+    if (!currentUser?.nombre) return 'US';
+    const parts = currentUser.nombre.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return parts[0].slice(0, 2).toUpperCase();
+  };
+
   // Enviar mensaje al backend de IA (FastAPI puerto 8000)
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
@@ -288,7 +297,7 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
             >
               <div className="flex justify-between items-center text-[10px] opacity-70">
                 <span className="font-bold">
-                  {m.sender === 'user' ? 'Tú (Ricardo Bueno)' : 'Asistente Virtual RIALSA'}
+                  {m.sender === 'user' ? (currentUser?.nombre ? `Tú (${currentUser.nombre})` : 'Tú (Colaborador)') : 'Asistente Virtual RIALSA'}
                 </span>
                 <span>{m.timestamp}</span>
               </div>
@@ -321,7 +330,7 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
 
             {m.sender === 'user' && (
               <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-xs">
-                RB
+                {getUserInitials()}
               </div>
             )}
           </div>

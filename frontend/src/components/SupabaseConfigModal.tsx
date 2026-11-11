@@ -149,3 +149,4 @@ export const SupabaseConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
     </div>
   );
 };
+

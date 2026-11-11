@@ -25,6 +25,8 @@ export const EmployeeTicketDetailView: React.FC<Props> = ({
   const currentPriority = ticket ? ticket.prioridad : 'Alta';
   const currentCategory = ticket ? ticket.categoria : 'Acceso';
   const currentAsunto = ticket ? ticket.asunto : 'No puedo conectarme a la VPN desde mi laptop fuera de la oficina. El cliente indica que no puede validar mis credenciales.';
+  const comentariosList = ticket?.comentariosPublicos || [];
+  const comentariosCount = comentariosList.length;
 
   const handleSendComment = () => {
     if (!comentario.trim()) return;
@@ -123,13 +125,13 @@ export const EmployeeTicketDetailView: React.FC<Props> = ({
           {/* Historial de Comentarios Persistentes */}
           <div className="space-y-2">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center justify-between">
-              <span>Historial de conversación y notas ({ticket?.comentariosPublicos?.length || 0})</span>
+              <span>Historial de conversación y notas ({comentariosCount})</span>
               <span className="text-[10px] text-slate-400 font-normal">Visible para solicitante y técnicos</span>
             </h3>
 
-            {ticket?.comentariosPublicos && ticket.comentariosPublicos.length > 0 ? (
+            {comentariosList.length > 0 ? (
               <div className="space-y-2.5">
-                {ticket.comentariosPublicos.map((c) => {
+                {comentariosList.map((c) => {
                   const isMine = Boolean(
                     currentUser?.nombre && c.autor.toLowerCase().includes(currentUser.nombre.toLowerCase().split(' ')[0])
                   );

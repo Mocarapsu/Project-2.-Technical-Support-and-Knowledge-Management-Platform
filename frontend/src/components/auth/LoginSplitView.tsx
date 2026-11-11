@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { AlertCircle, Loader2, ArrowRight, Lock, Mail, Eye, EyeOff, UserPlus, CheckCircle2, Database } from 'lucide-react';
+import { AlertCircle, Loader2, ArrowRight, Lock, Mail, Eye, EyeOff, UserPlus, CheckCircle2, Database, Check } from 'lucide-react';
 import { AuthScreen, UserAccount } from '../../types/figma-tickets';
-import { getStoredUsers, saveNewUser } from '../../services/db';
+import { getStoredUsers, saveNewUser, DEFAULT_USERS } from '../../services/db';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 
 interface Props {
@@ -20,14 +20,14 @@ export const LoginSplitView: React.FC<Props> = ({
 }) => {
   const shouldReduceMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
-  const [usersList, setUsersList] = useState<UserAccount[]>([]);
-
+  
   // Login form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [emailFormatError, setEmailFormatError] = useState(false);
 
   // Register form state
   const [regName, setRegName] = useState('');
@@ -35,61 +35,86 @@ export const LoginSplitView: React.FC<Props> = ({
   const [regRole, setRegRole] = useState<'empleado' | 'tecnico' | 'admin'>('empleado');
   const [regDept, setRegDept] = useState('Operaciones');
   const [regPassword, setRegPassword] = useState('');
+  const [regErrors, setRegErrors] = useState<{ name?: string; email?: string; password?: string }>({});
   const [registerSuccess, setRegisterSuccess] = useState(false);
+  const [supportCopied, setSupportCopied] = useState(false);
 
-  useEffect(() => {
-    setUsersList(getStoredUsers());
-  }, []);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setErrorMessage(null);
+    setEmailFormatError(false);
+
+    const lower = email.toLowerCase().trim();
+
+    // BUG-005: Validación visual clara de correo
+    if (!lower) {
+      setEmailFormatError(true);
+      setErrorMessage('Por favor ingresa tu correo electrónico institucional.');
+      return;
+    }
+
+    if (!emailRegex.test(lower)) {
+      setEmailFormatError(true);
+      setErrorMessage('El formato de correo no es válido. Ejemplo: usuario@gid.com.mx');
+      return;
+    }
+
+    if (!password.trim()) {
+      setErrorMessage('Por favor ingresa tu contraseña institucional.');
+      return;
+    }
+
+    setIsLoading(true);
 
     setTimeout(() => {
       setIsLoading(false);
-      const lower = email.toLowerCase().trim();
 
-      if (lower.includes('error')) {
-        setErrorMessage('Credenciales inválidas. Revisa tu correo o contraseña.');
-        return;
-      }
-
-      // 1. Buscar en la base de datos de usuarios
+      // Buscar en base de datos de usuarios
       const existingUsers = getStoredUsers();
       const matched = existingUsers.find((u) => u.email.toLowerCase() === lower);
 
-      if (matched) {
-        onLoginSuccess?.(matched);
+      // BUG-006: Feedback claro ante credenciales incorrectas
+      if (!matched) {
+        setErrorMessage('Usuario no registrado. Verifica tu correo institucional o regístrate en "Crear Cuenta".');
         return;
       }
 
-      // 2. Si no coincide exactamente, detectar el rol y crear la cuenta al vuelo
-      let detectedRole: 'empleado' | 'tecnico' | 'admin' = 'empleado';
-      let detectedName = email.split('@')[0].replace('.', ' ');
-      detectedName = detectedName.charAt(0).toUpperCase() + detectedName.slice(1);
-
-      if (lower.includes('tecnico') || lower.includes('soporte') || lower.includes('alfredo')) {
-        detectedRole = 'tecnico';
-      } else if (lower.includes('admin') || lower.includes('ciso') || lower.includes('bautista')) {
-        detectedRole = 'admin';
-        detectedName = 'Ing. José Luis Bautista';
+      if (matched.password && matched.password !== password) {
+        setErrorMessage('Correo o contraseña incorrectos. Verifica tus credenciales de acceso.');
+        return;
       }
 
-      const autoUser = saveNewUser({
-        nombre: detectedName,
-        email: lower,
-        rol: detectedRole,
-        departamento: detectedRole === 'admin' ? 'Dirección TI' : 'Operaciones'
-      });
-
-      onLoginSuccess?.(autoUser);
-    }, 600);
+      onLoginSuccess?.(matched);
+    }, 500);
   };
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regName.trim() || !regEmail.trim()) return;
+    const newErrors: { name?: string; email?: string; password?: string } = {};
+
+    // BUG-010: Validación nativa en español
+    if (!regName.trim()) {
+      newErrors.name = 'Por favor ingresa tu nombre completo.';
+    } else if (regName.trim().length < 3) {
+      newErrors.name = 'El nombre debe tener al menos 3 caracteres.';
+    }
+
+    if (!regEmail.trim()) {
+      newErrors.email = 'Por favor ingresa tu correo institucional.';
+    } else if (!emailRegex.test(regEmail.trim().toLowerCase())) {
+      newErrors.email = 'Formato de correo inválido (ej. usuario@gid.com.mx).';
+    }
+
+    if (!regPassword.trim()) {
+      newErrors.password = 'Por favor define una contraseña.';
+    } else if (regPassword.trim().length < 6) {
+      newErrors.password = 'La contraseña debe tener al menos 6 caracteres.';
+    }
+
+    setRegErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
 
     setIsLoading(true);
     setTimeout(() => {
@@ -235,30 +260,38 @@ export const LoginSplitView: React.FC<Props> = ({
 
                 {errorMessage && (
                   <motion.div
+                    role="alert"
+                    aria-live="polite"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    className="mb-4 bg-red-50 border border-red-200 text-red-700 text-xs p-3.5 rounded-xl flex items-start gap-2.5"
+                    className="mb-4 bg-red-50 border border-red-300 text-red-700 text-xs p-3.5 rounded-xl flex items-start gap-2.5 shadow-xs"
                   >
                     <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                    <div>{errorMessage}</div>
+                    <div className="font-medium">{errorMessage}</div>
                   </motion.div>
                 )}
 
-                <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <form onSubmit={handleLoginSubmit} noValidate className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Correo institucional
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span>Correo institucional</span>
+                      {emailFormatError && <span className="text-[10px] text-red-600 font-bold">Formato inválido</span>}
                     </label>
                     <div className="relative">
                       <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                       <input
                         type="email"
-                        required
                         disabled={isLoading}
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (emailFormatError) setEmailFormatError(false);
+                          if (errorMessage) setErrorMessage(null);
+                        }}
                         placeholder="ej: tu.nombre@gid.com.mx"
-                        className="w-full text-xs pl-10 pr-3.5 py-2.5 border border-slate-300 rounded-lg text-slate-900 bg-white placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                        className={`w-full text-xs pl-10 pr-3.5 py-2.5 border rounded-lg text-slate-900 bg-white placeholder-slate-400 focus:outline-none transition ${
+                          emailFormatError ? 'border-red-500 ring-2 ring-red-200' : 'border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20'
+                        }`}
                       />
                     </div>
                   </div>
@@ -278,10 +311,12 @@ export const LoginSplitView: React.FC<Props> = ({
                       <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                       <input
                         type={showPassword ? 'text' : 'password'}
-                        required
                         disabled={isLoading}
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (errorMessage) setErrorMessage(null);
+                        }}
                         placeholder="••••••••••••"
                         className="w-full text-xs pl-10 pr-10 py-2.5 border border-slate-300 rounded-lg text-slate-900 bg-white placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
                       />
@@ -298,7 +333,7 @@ export const LoginSplitView: React.FC<Props> = ({
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-2.5 px-4 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-black text-white transition flex items-center justify-center gap-2 shadow-sm"
+                    className="w-full py-2.5 px-4 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-black text-white transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                   >
                     {isLoading ? (
                       <>
@@ -314,10 +349,10 @@ export const LoginSplitView: React.FC<Props> = ({
                   </button>
                 </form>
 
-                {/* Quick Access Profiles from Database */}
+                {/* Quick Access Profiles from Official Demo Seeds Only (BUG-004) */}
                 <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
                   <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold text-center mb-1">
-                    Acceso Rápido por Perfil (Base de Datos)
+                    Acceso Rápido por Perfil (Demo Académico)
                   </p>
                   
                   {/* ADMIN */}
@@ -326,12 +361,12 @@ export const LoginSplitView: React.FC<Props> = ({
                       🛡 Dirección TI (Admin):
                     </span>
                     <div className="flex flex-wrap gap-1">
-                      {usersList.filter((u) => u.rol === 'admin').map((u) => (
+                      {DEFAULT_USERS.filter((u) => u.rol === 'admin').map((u) => (
                         <button
                           key={u.id}
                           type="button"
                           onClick={() => handleQuickLogin(u)}
-                          className="text-[10px] py-1 px-2.5 rounded-md font-bold transition bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200"
+                          className="text-[10px] py-1 px-2.5 rounded-md font-bold transition bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 cursor-pointer"
                           title={`${u.email} (${u.departamento})`}
                         >
                           🛡 {u.nombre}
@@ -346,12 +381,12 @@ export const LoginSplitView: React.FC<Props> = ({
                       🛠 Técnicos Resolutores (Mesa de Ayuda TI):
                     </span>
                     <div className="flex flex-wrap gap-1">
-                      {usersList.filter((u) => u.rol === 'tecnico').map((u) => (
+                      {DEFAULT_USERS.filter((u) => u.rol === 'tecnico').map((u) => (
                         <button
                           key={u.id}
                           type="button"
                           onClick={() => handleQuickLogin(u)}
-                          className="text-[10px] py-1 px-2 rounded-md font-semibold transition bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200"
+                          className="text-[10px] py-1 px-2 rounded-md font-semibold transition bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 cursor-pointer"
                           title={`${u.email} (${u.departamento})`}
                         >
                           🛠 {u.nombre.split(' ')[0]} {u.nombre.split(' ')[1] || ''}
@@ -366,12 +401,12 @@ export const LoginSplitView: React.FC<Props> = ({
                       👤 Empleados / Clientes (Solicitantes):
                     </span>
                     <div className="flex flex-wrap gap-1">
-                      {usersList.filter((u) => u.rol === 'empleado').map((u) => (
+                      {DEFAULT_USERS.filter((u) => u.rol === 'empleado').map((u) => (
                         <button
                           key={u.id}
                           type="button"
                           onClick={() => handleQuickLogin(u)}
-                          className="text-[10px] py-1 px-2 rounded-md font-semibold transition bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200"
+                          className="text-[10px] py-1 px-2 rounded-md font-semibold transition bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 cursor-pointer"
                           title={`${u.email} (${u.departamento})`}
                         >
                           👤 {u.nombre.split(' ')[0]} {u.nombre.split(' ')[1] || ''}
@@ -389,7 +424,7 @@ export const LoginSplitView: React.FC<Props> = ({
                 <div className="mb-5">
                   <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Crear Cuenta</h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    Registra tu nombre para que el sistema te reconozca en todas las pantallas.
+                    Registra una nueva cuenta institucional para interactuar en la plataforma.
                   </p>
                 </div>
 
@@ -404,28 +439,42 @@ export const LoginSplitView: React.FC<Props> = ({
                     <p className="text-xs">Guardada en base de datos. Iniciando sesión...</p>
                   </motion.div>
                 ) : (
-                  <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+                  <form onSubmit={handleRegisterSubmit} noValidate className="space-y-3.5">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo</label>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Nombre Completo <span className="text-red-500">*</span></span>
+                        {regErrors.name && <span className="text-[10px] text-red-600 font-medium">{regErrors.name}</span>}
+                      </label>
                       <input
                         type="text"
-                        required
                         value={regName}
-                        onChange={(e) => setRegName(e.target.value)}
+                        onChange={(e) => {
+                          setRegName(e.target.value);
+                          if (regErrors.name) setRegErrors((prev) => ({ ...prev, name: undefined }));
+                        }}
                         placeholder="ej: Daniel López Morales"
-                        className="w-full text-xs border border-slate-300 rounded-lg p-2.5 font-medium text-slate-900 bg-white placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                        className={`w-full text-xs border rounded-lg p-2.5 font-medium text-slate-900 bg-white placeholder-slate-400 focus:outline-none transition ${
+                          regErrors.name ? 'border-red-500 ring-2 ring-red-200' : 'border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20'
+                        }`}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Correo Institucional</label>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Correo Institucional <span className="text-red-500">*</span></span>
+                        {regErrors.email && <span className="text-[10px] text-red-600 font-medium">{regErrors.email}</span>}
+                      </label>
                       <input
                         type="email"
-                        required
                         value={regEmail}
-                        onChange={(e) => setRegEmail(e.target.value)}
+                        onChange={(e) => {
+                          setRegEmail(e.target.value);
+                          if (regErrors.email) setRegErrors((prev) => ({ ...prev, email: undefined }));
+                        }}
                         placeholder="daniel.lopez@gid.com.mx"
-                        className="w-full text-xs border border-slate-300 rounded-lg p-2.5 text-slate-900 bg-white placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                        className={`w-full text-xs border rounded-lg p-2.5 text-slate-900 bg-white placeholder-slate-400 focus:outline-none transition ${
+                          regErrors.email ? 'border-red-500 ring-2 ring-red-200' : 'border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20'
+                        }`}
                       />
                     </div>
 
@@ -456,21 +505,28 @@ export const LoginSplitView: React.FC<Props> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Contraseña</label>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Contraseña <span className="text-red-500">*</span></span>
+                        {regErrors.password && <span className="text-[10px] text-red-600 font-medium">{regErrors.password}</span>}
+                      </label>
                       <input
                         type="password"
-                        required
                         value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
+                        onChange={(e) => {
+                          setRegPassword(e.target.value);
+                          if (regErrors.password) setRegErrors((prev) => ({ ...prev, password: undefined }));
+                        }}
                         placeholder="••••••••••••"
-                        className="w-full text-xs border border-slate-300 rounded-lg p-2.5 text-slate-900 bg-white placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                        className={`w-full text-xs border rounded-lg p-2.5 text-slate-900 bg-white placeholder-slate-400 focus:outline-none transition ${
+                          regErrors.password ? 'border-red-500 ring-2 ring-red-200' : 'border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20'
+                        }`}
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full py-2.5 px-4 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center justify-center gap-2 shadow-sm mt-2"
+                      className="w-full py-2.5 px-4 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center justify-center gap-2 shadow-sm mt-2 cursor-pointer"
                     >
                       {isLoading ? (
                         <>
@@ -489,10 +545,29 @@ export const LoginSplitView: React.FC<Props> = ({
               </>
             )}
 
-            <div className="mt-5 pt-3 border-t border-slate-100 text-center">
+            <div className="mt-5 pt-3 border-t border-slate-100 text-center relative">
               <p className="text-[11px] text-slate-400">
-                Soporte de TI: <a href="mailto:soporte@gid.com.mx" className="text-blue-600 font-semibold hover:underline">soporte@gid.com.mx</a>
+                Soporte de TI:{' '}
+                <a
+                  href="mailto:soporte@gid.com.mx"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.location.href = 'mailto:soporte@gid.com.mx';
+                    setSupportCopied(true);
+                    setTimeout(() => setSupportCopied(false), 3000);
+                  }}
+                  className="text-blue-600 font-semibold hover:underline cursor-pointer"
+                  title="Clic para abrir cliente de correo a soporte@gid.com.mx"
+                >
+                  soporte@gid.com.mx
+                </a>
               </p>
+              {supportCopied && (
+                <div className="text-[10px] text-emerald-600 font-semibold mt-1 flex items-center justify-center gap-1 animate-in fade-in">
+                  <Check className="w-3 h-3 text-emerald-600" />
+                  <span>Abriendo cliente de correo institucional...</span>
+                </div>
+              )}
             </div>
           </motion.div>
         </div>

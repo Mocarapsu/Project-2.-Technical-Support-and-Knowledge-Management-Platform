@@ -148,7 +148,8 @@ export const DEFAULT_TICKETS: TicketItem[] = [
     estado: 'En progreso',
     asignacion: 'Ana Torres',
     fechaCreacion: '15 oct 2026 - 09:05',
-    slaRestante: '01 h 40 min'
+    slaRestante: '01 h 40 min',
+    comentariosPublicos: []
   },
   {
     id: 'TCK-1047',
@@ -159,7 +160,8 @@ export const DEFAULT_TICKETS: TicketItem[] = [
     estado: 'Abierto',
     asignacion: 'Alfredo González Soto',
     fechaCreacion: '15 oct 2026 - 09:12',
-    slaRestante: '03 h 20 min'
+    slaRestante: '03 h 20 min',
+    comentariosPublicos: []
   },
   {
     id: 'TCK-1048',
@@ -190,7 +192,8 @@ export const DEFAULT_TICKETS: TicketItem[] = [
     estado: 'En progreso',
     asignacion: 'Carlos Mendoza',
     fechaCreacion: '15 oct 2026 - 08:45',
-    slaRestante: '07 h 30 min'
+    slaRestante: '07 h 30 min',
+    comentariosPublicos: []
   }
 ];
 
@@ -285,7 +288,13 @@ export function getStoredTickets(): TicketItem[] {
       localStorage.setItem(TICKETS_STORAGE_KEY, JSON.stringify(DEFAULT_TICKETS));
       return DEFAULT_TICKETS;
     }
-    return JSON.parse(raw);
+    const parsed: TicketItem[] = JSON.parse(raw);
+    return parsed.map((t) => ({
+      ...t,
+      comentariosPublicos: Array.isArray(t.comentariosPublicos) ? t.comentariosPublicos : [],
+      notasInternas: Array.isArray(t.notasInternas) ? t.notasInternas : [],
+      historialAuditoria: Array.isArray(t.historialAuditoria) ? t.historialAuditoria : []
+    }));
   } catch {
     return DEFAULT_TICKETS;
   }
