@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Database, X, CheckCircle2, ShieldCheck, ExternalLink, KeyRound, Globe, Copy, Check } from 'lucide-react';
-import { isSupabaseConfigured, setSupabaseCredentials, SUPABASE_URL, SUPABASE_ANON_KEY } from '../services/supabaseClient';
+import { isSupabaseConfigured, setSupabaseCredentials, cleanSupabaseUrl, SUPABASE_URL, SUPABASE_ANON_KEY } from '../services/supabaseClient';
 
 interface Props {
   isOpen: boolean;
@@ -19,7 +19,8 @@ export const SupabaseConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim() || !key.trim()) return;
-    setSupabaseCredentials(url.trim(), key.trim());
+    const sanitizedUrl = cleanSupabaseUrl(url);
+    setSupabaseCredentials(sanitizedUrl, key.trim());
   };
 
   const copySqlPath = () => {
