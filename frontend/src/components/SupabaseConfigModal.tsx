@@ -81,15 +81,21 @@ export const SupabaseConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
           </div>
         ) : (
-          <div className="bg-blue-950/40 border border-blue-800/60 rounded-xl p-4 text-xs text-blue-200 space-y-2">
+          <div className="bg-blue-950/40 border border-blue-800/60 rounded-xl p-4 text-xs text-blue-200 space-y-2.5">
             <div className="flex items-center gap-2 font-bold text-white">
               <ShieldCheck className="w-4 h-4 text-blue-400" />
-              <span>Pasos rápidos para conectar en 2 minutos:</span>
+              <span>Pasos rápidos para conectar con Supabase:</span>
             </div>
-            <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1">
-              <li>Crea un proyecto gratis en <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-blue-400 underline font-semibold inline-flex items-center gap-0.5">supabase.com <ExternalLink className="w-3 h-3" /></a></li>
-              <li>Abre <strong>SQL Editor</strong> y ejecuta el script <code className="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-300 font-mono">supabase_setup.sql</code> que ya te dejé creado.</li>
-              <li>Copia tu <strong>Project URL</strong> y <strong>anon public key</strong> (en Project Settings &gt; API) y pégalos aquí abajo:</li>
+            <ol className="list-decimal list-inside space-y-1.5 text-slate-300 pl-1 leading-relaxed">
+              <li>
+                <strong className="text-amber-300">Paso 1 (Indispensable):</strong> Abre el menú <strong>SQL Editor</strong> en Supabase, pega el contenido del archivo <code className="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-300 font-mono">supabase_setup.sql</code> y pulsa <strong>RUN</strong> para crear las tablas.
+              </li>
+              <li>
+                <strong>Paso 2:</strong> Ve a <strong>Project Settings &gt; API</strong> y copia tu <strong>Project URL</strong> (<code className="text-blue-300">https://xyz.supabase.co</code>).
+              </li>
+              <li>
+                <strong>Paso 3:</strong> En la sección de claves, haz clic en el botón <strong>View</strong> del banner superior para ver la clave clásica <strong>anon public</strong> (<code className="text-emerald-300">eyJhbGci...</code>) o usa la <strong>Publishable key</strong> (<code className="text-emerald-300">sb_publishable_...</code>).
+              </li>
             </ol>
           </div>
         )}
@@ -112,15 +118,18 @@ export const SupabaseConfigModal: React.FC<Props> = ({ isOpen, onClose }) => {
           </div>
 
           <div>
-            <label className="block text-slate-300 font-semibold mb-1 flex items-center gap-1.5">
-              <KeyRound className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Anon Public Key (Clave Pública Anónima):</span>
+            <label className="block text-slate-300 font-semibold mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Anon Public Key o Publishable Key:</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-normal">Recomendada: clave anon (eyJ...)</span>
             </label>
             <input
               type="text"
               value={key}
               onChange={(e) => setKey(e.target.value)}
-              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... o sb_publishable_..."
               required
               className="w-full text-xs px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
             />

@@ -506,7 +506,11 @@ export async function fetchRemoteTickets(): Promise<TicketItem[] | null> {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error || !data) return null;
+    if (error) {
+      console.warn('[Supabase Sync] Error al leer tabla tickets:', error.message, error.details || '');
+      return null;
+    }
+    if (!data) return null;
 
     const cloudTickets = data.map(mapRowToTicket);
     saveStoredTickets(cloudTickets);
