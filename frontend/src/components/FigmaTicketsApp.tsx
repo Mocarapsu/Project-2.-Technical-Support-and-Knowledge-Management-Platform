@@ -477,7 +477,7 @@ export const FigmaTicketsApp: React.FC = () => {
         /* ESPACIO DE TRABAJO CON BARRA LATERAL NATIVA */
         <div className="flex-1 flex overflow-hidden h-full">
           <Sidebar
-            currentRole={currentRole}
+            currentRole={effectiveRole}
             currentScreen={currentScreen}
             currentUser={currentUser || undefined}
             onNavigate={handleNavigate}

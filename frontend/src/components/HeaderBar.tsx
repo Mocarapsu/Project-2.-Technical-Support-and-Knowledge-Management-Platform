@@ -85,7 +85,7 @@ export const HeaderBar: React.FC<Props> = ({
   };
 
   const getRoleMeta = () => {
-    const rol = currentUser?.rol || (currentScreen === 'admin_dashboard' ? 'admin' : currentScreen.startsWith('tecnico') ? 'tecnico' : 'empleado');
+    const rol = currentUser?.rol || (currentScreen === 'admin_dashboard' ? 'admin' : (currentScreen === 'tecnico_cola' || currentScreen === 'tecnico_detalle') ? 'tecnico' : 'empleado');
     if (rol === 'admin') {
       return {
         bg: 'bg-purple-600',
@@ -108,7 +108,7 @@ export const HeaderBar: React.FC<Props> = ({
   };
 
   const roleMeta = getRoleMeta();
-  const userRole = currentUser?.rol || (currentScreen === 'admin_dashboard' ? 'admin' : currentScreen.startsWith('tecnico') ? 'tecnico' : 'empleado');
+  const userRole = currentUser?.rol || (currentScreen === 'admin_dashboard' ? 'admin' : (currentScreen === 'tecnico_cola' || currentScreen === 'tecnico_detalle') ? 'tecnico' : 'empleado');
 
   // Filtrar notificaciones para este usuario y rol
   const userNotifications = notifications.filter((n) => {

@@ -30,6 +30,9 @@ export const Sidebar: React.FC<Props> = ({
   onRoleToggle,
   onLogout
 }) => {
+  // BUG-001 & BUG-002: La única fuente de verdad inmutable para el rol en el sidebar es la sesión activa
+  const activeRole = currentUser?.rol || currentRole;
+
   return (
     <aside className="w-64 bg-[#0B0D11] text-slate-300 flex flex-col justify-between p-3.5 border-r border-[#1a1d24] flex-shrink-0 h-full max-h-full select-none overflow-hidden">
       {/* Top Section */}
@@ -41,29 +44,29 @@ export const Sidebar: React.FC<Props> = ({
             
             {/* Active Role Badge (Color-coded) */}
             <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-bold tracking-wider uppercase ${
-              currentRole === 'admin'
+              activeRole === 'admin'
                 ? 'bg-purple-950/70 border-purple-500/50 text-purple-300'
-                : currentRole === 'tecnico'
+                : activeRole === 'tecnico'
                 ? 'bg-blue-950/70 border-blue-500/50 text-blue-300'
                 : 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300'
             }`}>
               <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
               <span>
-                {currentRole === 'empleado' && '👤 Empleado'}
-                {currentRole === 'tecnico' && '🛠 Técnico TI'}
-                {currentRole === 'admin' && '🛡 Admin CISO'}
+                {activeRole === 'empleado' && '👤 Empleado'}
+                {activeRole === 'tecnico' && '🛠 Técnico TI'}
+                {activeRole === 'admin' && '🛡 Admin CISO'}
               </span>
             </div>
           </div>
           <p className="text-[10px] text-slate-500">
-            {currentRole === 'empleado' && 'Centro de soporte TI institucional'}
-            {currentRole === 'tecnico' && 'Consola operativa de resolución'}
-            {currentRole === 'admin' && 'Dirección TI, SLAs y Rebalanceo'}
+            {activeRole === 'empleado' && 'Centro de soporte TI institucional'}
+            {activeRole === 'tecnico' && 'Consola operativa de resolución'}
+            {activeRole === 'admin' && 'Dirección TI, SLAs y Rebalanceo'}
           </p>
         </div>
 
         {/* Primary Action Button (Empleado) */}
-        {currentRole === 'empleado' && (
+        {activeRole === 'empleado' && (
           <div className="px-1">
             <button
               type="button"
@@ -78,7 +81,7 @@ export const Sidebar: React.FC<Props> = ({
 
         {/* Navigation Links */}
         <nav className="space-y-1 text-xs">
-          {currentRole === 'empleado' && (
+          {activeRole === 'empleado' && (
             <>
               <button
                 type="button"
@@ -134,7 +137,7 @@ export const Sidebar: React.FC<Props> = ({
             </>
           )}
 
-          {currentRole === 'tecnico' && (
+          {activeRole === 'tecnico' && (
             <>
               <button
                 type="button"
@@ -177,7 +180,7 @@ export const Sidebar: React.FC<Props> = ({
             </>
           )}
 
-          {currentRole === 'admin' && (
+          {activeRole === 'admin' && (
             <>
               <button
                 type="button"

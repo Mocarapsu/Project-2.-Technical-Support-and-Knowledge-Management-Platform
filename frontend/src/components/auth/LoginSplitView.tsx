@@ -549,15 +549,13 @@ export const LoginSplitView: React.FC<Props> = ({
               <p className="text-[11px] text-slate-400">
                 Soporte de TI:{' '}
                 <a
-                  href="mailto:soporte@gid.com.mx"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.location.href = 'mailto:soporte@gid.com.mx';
+                  href="mailto:soporte@gid.com.mx?subject=Soporte%20Portal%20RIALSA"
+                  onClick={() => {
                     setSupportCopied(true);
                     setTimeout(() => setSupportCopied(false), 3000);
                   }}
-                  className="text-blue-600 font-semibold hover:underline cursor-pointer"
-                  title="Clic para abrir cliente de correo a soporte@gid.com.mx"
+                  className="text-blue-600 font-semibold hover:underline cursor-pointer focus:ring-2 focus:ring-blue-500 rounded px-1"
+                  title="Enviar correo a soporte@gid.com.mx"
                 >
                   soporte@gid.com.mx
                 </a>
