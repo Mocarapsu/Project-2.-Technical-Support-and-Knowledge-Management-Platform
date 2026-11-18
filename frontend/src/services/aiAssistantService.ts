@@ -414,3 +414,4 @@ Responde en formato JSON con la siguiente estructura exacta:
     requiereEscalado: Boolean(parsed.requiereEscalado)
   };
 }
+

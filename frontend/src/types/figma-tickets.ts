@@ -98,4 +98,6 @@ export interface KbArticle {
   vistas: number;
   actualizado: string;
   tags: string[];
+  pasos?: string[];
+  contenidoDetallado?: string;
 }

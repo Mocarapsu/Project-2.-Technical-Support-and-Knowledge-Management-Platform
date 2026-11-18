@@ -136,6 +136,7 @@ export const FigmaTicketsApp: React.FC = () => {
 
   const selectedTicket = tickets.find((t) => t.id === selectedTicketId) || tickets[0];
   const isAuthScreen = currentScreen.startsWith('auth_');
+  const effectiveRole = currentUser?.rol || currentRole;
 
   const handleNavigate = (screen: ActiveScreen) => {
     if (screen.startsWith('auth_')) {
@@ -143,8 +144,6 @@ export const FigmaTicketsApp: React.FC = () => {
       setCurrentScreen(screen);
       return;
     }
-
-    const effectiveRole = currentUser?.rol || currentRole;
 
     // RBAC GUARD (BUG-001): Restricción estricta de rutas por rol
     if (effectiveRole === 'empleado') {
