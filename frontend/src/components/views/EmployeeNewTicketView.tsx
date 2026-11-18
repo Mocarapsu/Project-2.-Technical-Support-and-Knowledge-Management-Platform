@@ -6,21 +6,23 @@ interface Props {
   onCancel?: () => void;
   onSubmitSuccess?: () => void;
   onSubmitTicket?: (ticket: { asunto: string; descripcion: string; categoria: string; prioridad: string }) => void;
-  onTryAiFirst?: () => void;
+  onTryAiFirst?: (draft?: { asunto: string; descripcion: string; categoria: string; prioridad: string }) => void;
+  initialDraft?: { asunto: string; descripcion: string; categoria: string; prioridad?: string } | null;
 }
 
 export const EmployeeNewTicketView: React.FC<Props> = ({
   onCancel,
   onSubmitSuccess,
   onSubmitTicket,
-  onTryAiFirst
+  onTryAiFirst,
+  initialDraft
 }) => {
   const shouldReduceMotion = useReducedMotion();
   const [currentStep, setCurrentStep] = useState(1);
-  const [asunto, setAsunto] = useState('');
-  const [descripcion, setDescripcion] = useState('');
-  const [categoria, setCategoria] = useState('');
-  const [prioridad, setPrioridad] = useState('');
+  const [asunto, setAsunto] = useState(initialDraft?.asunto || '');
+  const [descripcion, setDescripcion] = useState(initialDraft?.descripcion || '');
+  const [categoria, setCategoria] = useState(initialDraft?.categoria || '');
+  const [prioridad, setPrioridad] = useState(initialDraft?.prioridad || '');
   const [errors, setErrors] = useState<{ asunto?: string; descripcion?: string; categoria?: string; prioridad?: string }>({});
 
   const validate = (): boolean => {
@@ -264,11 +266,19 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
             <div className="pt-3 border-t border-slate-200/60">
               <button
                 type="button"
-                onClick={onTryAiFirst}
-                className="w-full text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center justify-between group p-1"
+                onClick={() =>
+                  onTryAiFirst?.({
+                    asunto: asunto.trim(),
+                    descripcion: descripcion.trim(),
+                    categoria: categoria || 'General',
+                    prioridad: prioridad || 'Media'
+                  })
+                }
+                className="w-full text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center justify-between group p-1 cursor-pointer"
+                title="Analiza el problema con el Asistente IA antes de abrir el ticket"
               >
                 <span className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
                   <span>Probar con IA primero</span>
                 </span>
                 <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />

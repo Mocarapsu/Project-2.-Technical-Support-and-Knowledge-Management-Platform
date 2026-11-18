@@ -1,22 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   Bot,
   Send,
-  Paperclip,
   CheckCircle2,
   XCircle,
   AlertTriangle,
   BookOpen,
   Loader2,
-  Sparkles
+  Sparkles,
+  KeyRound,
+  ExternalLink,
+  RotateCcw,
+  Settings,
+  X,
+  Check
 } from 'lucide-react';
 
-import { ActiveScreen, UserAccount } from '../../types/figma-tickets';
+import { UserAccount } from '../../types/figma-tickets';
+import { askAiAssistant, TicketDraftContext, AiDiagnosticResult } from '../../services/aiAssistantService';
 
 interface Props {
-  onEscalate?: () => void;
+  onEscalate?: (draft?: TicketDraftContext) => void;
   currentUser?: UserAccount | null;
+  initialTicketDraft?: TicketDraftContext | null;
+  onClearDraft?: () => void;
 }
 
 interface Message {
@@ -29,37 +37,23 @@ interface Message {
   isResolved?: boolean;
 }
 
-export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUser }) => {
+export const EmployeeAiAssistantView: React.FC<Props> = ({
+  onEscalate,
+  currentUser,
+  initialTicketDraft,
+  onClearDraft
+}) => {
   const shouldReduceMotion = useReducedMotion();
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [attemptCount, setAttemptCount] = useState(1);
   const [isCaseResolved, setIsCaseResolved] = useState(false);
-
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      sender: 'ai',
-      text: `Hola ${currentUser?.nombre ? currentUser.nombre.split(' ')[0] : 'Colaborador'}. Describe el fallo o consulta que estás experimentando. Buscaré la solución en las guías técnicas oficiales autorizadas de Grupo Industrial Delnorte.`,
-      timestamp: '09:20'
-    },
-    {
-      sender: 'user',
-      text: 'La impresora Zebra ZT230 de la Línea 2 no imprime las etiquetas de embarque y la luz frontal parpadea en rojo.',
-      timestamp: '09:21'
-    },
-    {
-      sender: 'ai',
-      text: 'He localizado el procedimiento de solución para el LED rojo parpadeante en el cabezal de impresión:',
-      steps: [
-        'Verifica que el cable de red LAN azul esté conectado firmemente al puerto posterior RJ45.',
-        'Mantén presionado el botón FEED durante 3 segundos hasta que expulse una etiqueta en blanco para auto-calibrar sensores.',
-        'Abre el compartimento lateral y asegura que la palanca dorada de presión del cabezal térmico esté trabada hacia abajo.'
-      ],
-      citation: 'Artículo KB-014: Calibración y atasco Zebra ZT230',
-      similarity: '0.89',
-      timestamp: '09:21'
-    }
-  ]);
+  const [lastProblemSubject, setLastProblemSubject] = useState<string>('');
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [geminiKeyInput, setGeminiKeyInput] = useState('');
+  const [geminiKeyActive, setGeminiKeyActive] = useState(false);
+  const [activeModelName, setActiveModelName] = useState('Motor Neuronal RIALSA (RAG)');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const getTimeNow = () => {
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -74,13 +68,106 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
     return parts[0].slice(0, 2).toUpperCase();
   };
 
-  // Enviar mensaje al backend de IA (FastAPI puerto 8000)
+  // Inicializar estado de mensajes
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const time = getTimeNow();
+    const name = currentUser?.nombre ? currentUser.nombre.split(' ')[0] : 'Colaborador';
+    return [
+      {
+        sender: 'ai',
+        text: `Hola ${name}. Soy tu Asistente Técnico RIALSA con IA de Grupo Industrial Delnorte. ¿En qué problema o consulta de sistemas te puedo ayudar hoy?`,
+        timestamp: time
+      }
+    ];
+  });
+
+  // Verificar si hay Gemini API Key guardada
+  useEffect(() => {
+    const savedKey = localStorage.getItem('rialsa_gemini_api_key') || '';
+    if (savedKey.trim()) {
+      setGeminiKeyActive(true);
+      setGeminiKeyInput(savedKey);
+      setActiveModelName('Google Gemini 1.5/2.0 Flash');
+    }
+  }, []);
+
+  // Auto-scroll al final del chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
+
+  // Si viene un borrador desde "Crear ticket" (Probar con IA primero), analizarlo automáticamente
+  useEffect(() => {
+    if (initialTicketDraft && (initialTicketDraft.asunto || initialTicketDraft.descripcion)) {
+      const draftSubject = initialTicketDraft.asunto || initialTicketDraft.descripcion;
+      setLastProblemSubject(draftSubject);
+
+      const userQuery = `${initialTicketDraft.asunto}${
+        initialTicketDraft.descripcion ? `. Detalle: ${initialTicketDraft.descripcion}` : ''
+      }`;
+
+      const userTime = getTimeNow();
+
+      // Agregar mensaje del usuario con su ticket
+      setMessages([
+        {
+          sender: 'ai',
+          text: `Hola ${currentUser?.nombre ? currentUser.nombre.split(' ')[0] : 'Colaborador'}. He recibido tu solicitud técnica desde el formulario de tickets. Estoy analizando el procedimiento adecuado en los manuales autorizados de GID...`,
+          timestamp: userTime
+        },
+        {
+          sender: 'user',
+          text: userQuery,
+          timestamp: userTime
+        }
+      ]);
+
+      setIsLoading(true);
+
+      askAiAssistant(userQuery, currentUser?.email, initialTicketDraft)
+        .then((aiRes) => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              sender: 'ai',
+              text: aiRes.respuesta,
+              steps: aiRes.pasos,
+              citation: aiRes.cita,
+              similarity: aiRes.similitud,
+              timestamp: getTimeNow()
+            }
+          ]);
+          setActiveModelName(aiRes.modelo);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [initialTicketDraft]);
+
+  // Guardar clave de Gemini
+  const handleSaveGeminiKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (geminiKeyInput.trim()) {
+      localStorage.setItem('rialsa_gemini_api_key', geminiKeyInput.trim());
+      setGeminiKeyActive(true);
+      setActiveModelName('Google Gemini 1.5/2.0 Flash');
+    } else {
+      localStorage.removeItem('rialsa_gemini_api_key');
+      setGeminiKeyActive(false);
+      setActiveModelName('Motor Neuronal RIALSA (RAG)');
+    }
+    setShowApiKeyModal(false);
+  };
+
+  // Enviar mensaje al Asistente IA
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
     const userText = inputText.trim();
     const time = getTimeNow();
 
-    // Agregar mensaje del usuario
+    setLastProblemSubject(userText);
+    setInputText('');
     setMessages((prev) => [
       ...prev,
       {
@@ -89,99 +176,73 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
         timestamp: time
       }
     ]);
-    setInputText('');
     setIsLoading(true);
 
     try {
-      // Llamada al microservicio de Python FastAPI (puerto 8000 con fallback a 8001)
-      let response: Response | null = null;
-      const payload = JSON.stringify({
-        query: userText,
-        user_id: currentUser?.email || 'empleado@gid.com.mx'
-      });
+      const aiRes = await askAiAssistant(
+        userText,
+        currentUser?.email,
+        initialTicketDraft || undefined
+      );
 
-      try {
-        response = await fetch('http://localhost:8000/api/v1/ai/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload
-        });
-      } catch {
-        try {
-          response = await fetch('http://localhost:8001/api/v1/ai/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: payload
-          });
-        } catch {
-          response = null;
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: aiRes.respuesta,
+          steps: aiRes.pasos,
+          citation: aiRes.cita,
+          similarity: aiRes.similitud,
+          timestamp: getTimeNow()
         }
-      }
-
-      if (response && response.ok) {
-        const data = await response.json();
-        setMessages((prev) => [
-          ...prev,
-          {
-            sender: 'ai',
-            text: data.respuesta,
-            steps: data.pasos,
-            citation: data.cita,
-            similarity: String(data.similitud),
-            timestamp: getTimeNow()
-          }
-        ]);
-      } else {
-        throw new Error('Respuesta no válida del servicio AI');
-      }
+      ]);
+      setActiveModelName(aiRes.modelo);
     } catch {
-      // Fallback inteligente en caso de que el backend no responda
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            sender: 'ai',
-            text: `He analizado tu consulta sobre "${userText}". Según la documentación técnica de GID, te sugiero el siguiente procedimiento:`,
-            steps: [
-              'Revisa la conectividad de red y verifica que el dispositivo tenga IP asignada en el segmento 192.168.10.x.',
-              'Reinicia el servicio asociado desde la consola o reconecta el cable de comunicación.',
-              'Si el fallo persiste, utiliza el botón "Escalar a técnico humano" para que soporte nivel 2 te asista.'
-            ],
-            citation: 'Artículo KB-231: Soporte de Redes y Periféricos GID',
-            similarity: '0.85',
-            timestamp: getTimeNow()
-          }
-        ]);
-      }, 700);
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: `He recibido tu consulta sobre "${userText}". Por favor intenta reiniciar el servicio correspondiente o verifica la conexión física del equipo.`,
+          steps: [
+            'Comprueba la alimentación y conexiones físicas del equipo.',
+            'Cierra la sesión y vuelve a ingresar para refrescar permisos.',
+            'Si persiste, puedes escalar a un especialista técnico.'
+          ],
+          citation: 'Manual de Procedimientos Generales GID (IT-STD-01)',
+          similarity: '0.80',
+          timestamp: getTimeNow()
+        }
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Botón: No funcionó (Intentos 2 y 3)
+  // Botón: No funcionó (Intentos 2 y 3 contextuales)
   const handleNotWorking = () => {
     const nextAttempt = attemptCount + 1;
     setAttemptCount(nextAttempt);
     const time = getTimeNow();
+    const topic = lastProblemSubject || 'el incidente reportado';
 
     if (nextAttempt === 2) {
       setMessages((prev) => [
         ...prev,
         {
           sender: 'user',
-          text: 'No funcionó el primer procedimiento. La luz roja sigue parpadeando.',
+          text: 'No funcionó la primera solución recomendada. El problema continúa.',
           timestamp: time
         },
         {
           sender: 'ai',
-          text: 'Entendido. Registrando Intento 2 de 3 con solución de contingencia:',
+          text: `Entendido. Registrando Intento 2 de 3 con procedimiento de contingencia para "${topic}":`,
           steps: [
-            'Apaga la impresora durante 15 segundos y desconecta el cable de corriente eléctrica.',
-            'Limpia con cuidado el sensor óptico de medios y el rodillo frontal (Platen Roller) con un hisopo con alcohol isopropílico.',
-            'Enciende la impresora manteniendo presionado el botón PAUSE para forzar la impresión de prueba de diagnóstico.'
+            'Apaga o desconecta el equipo o software por completo durante 20 segundos para purgar energía residual y memoria volátil.',
+            'Verifica en el Visor de Eventos de Windows o logs del sistema si aparece algún código de error numérico.',
+            'Ejecuta un ciclo de diagnóstico directo o solicita a tu supervisor validar si hay un corte general programado en el área.'
           ],
-          citation: 'Artículo KB-014 (Sección 3.2): Fallo de sensor y reinicio de ciclo térmico',
-          similarity: '0.84',
+          citation: 'Artículo de Contingencia Operativa Nivel 2 · GID Soporte',
+          similarity: '0.86',
           timestamp: time
         }
       ]);
@@ -190,16 +251,16 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
         ...prev,
         {
           sender: 'user',
-          text: 'Tampoco funcionó el segundo intento. El problema continúa.',
+          text: 'Tampoco funcionó el segundo intento. El problema sigue sin solucionarse.',
           timestamp: time
         },
         {
           sender: 'ai',
-          text: '⚠️ Has completado 3 intentos de resolución guiada por IA sin éxito. Según las políticas de servicio de GID (Regla FR-13), este incidente debe ser transferido a un técnico humano de Soporte Nivel 2.',
+          text: `⚠️ Has completado 3 intentos de resolución guiada por IA sin éxito para "${topic}". Según las políticas de servicio de Grupo Industrial Delnorte (Regla FR-13), este incidente debe ser transferido inmediatamente a un Ingeniero de Soporte Nivel 2.`,
           steps: [
             'Haz clic en el botón rojo "Escalar a técnico humano" a continuación.',
             'El sistema transferirá automáticamente todo el historial de diagnósticos y pruebas realizadas a la cola del técnico.',
-            'Se asignará un ticket con SLA prioritario de 4 horas.'
+            'Se asignará un ticket con SLA prioritario de atención.'
           ],
           citation: 'Protocolo de Escalación RIALSA: Política Nivel 2 Automática',
           similarity: '0.72',
@@ -221,12 +282,26 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
         steps: [
           'No es necesario abrir un ticket con soporte técnico.',
           'Se incrementó la métrica de resolución RAG en el Dashboard Gerencial (Tasa actual: 64%).',
-          'Si requieres asistencia con otro equipo, escribe tu nueva consulta abajo.'
+          'Si requieres asistencia con otro equipo o consulta, escribe abajo con confianza.'
         ],
         citation: 'Caso cerrado con éxito · RIALSA AI Knowledge Base',
         similarity: '1.00',
         timestamp: time,
         isResolved: true
+      }
+    ]);
+  };
+
+  // Reiniciar conversación
+  const handleResetChat = () => {
+    setAttemptCount(1);
+    setIsCaseResolved(false);
+    onClearDraft?.();
+    setMessages([
+      {
+        sender: 'ai',
+        text: `Hola ${currentUser?.nombre ? currentUser.nombre.split(' ')[0] : 'Colaborador'}. Chat reiniciado. ¿En qué otro fallo técnico o consulta te puedo ayudar?`,
+        timestamp: getTimeNow()
       }
     ]);
   };
@@ -237,7 +312,7 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -10 }}
       transition={{ duration: 0.3 }}
-      className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm space-y-6"
+      className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-5"
     >
       {/* Top Header */}
       <div className="flex flex-wrap justify-between items-center border-b border-slate-100 pb-4 gap-3">
@@ -249,28 +324,76 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
             </h1>
             <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>FastAPI & Ollama Activo (:8000)</span>
+              <span>{activeModelName}</span>
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Respuestas generadas mediante RAG utilizando manuales técnicos oficiales de GID.
+            Diagnóstico dinámico, resolución de incidentes, manuales autorizados de GID y asistencia interactiva.
           </p>
         </div>
 
         <div className="flex items-center gap-2 text-xs">
-          <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition ${
-            attemptCount >= 3
-              ? 'bg-red-50 text-red-700 border-red-200 animate-pulse'
-              : 'bg-slate-100 text-slate-700 border-slate-200'
-          }`}>
-            Intento IA: {Math.min(attemptCount, 3)} de 3
+          <button
+            type="button"
+            onClick={() => setShowApiKeyModal(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-[11px] font-semibold text-slate-700 transition cursor-pointer"
+            title="Configurar Google Gemini API Key"
+          >
+            <Settings className="w-3.5 h-3.5 text-blue-600" />
+            <span className="hidden sm:inline">Motor IA</span>
+            {geminiKeyActive && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleResetChat}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-[11px] font-medium text-slate-600 transition cursor-pointer"
+            title="Reiniciar conversación"
+          >
+            <RotateCcw className="w-3 h-3 text-slate-400" />
+            <span className="hidden sm:inline">Limpiar</span>
+          </button>
+
+          <span
+            className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition ${
+              attemptCount >= 3
+                ? 'bg-red-50 text-red-700 border-red-200 animate-pulse'
+                : 'bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            Intento: {Math.min(attemptCount, 3)}/3
           </span>
-          <span className="text-slate-400 text-[11px] font-mono">PII Masking Activo</span>
         </div>
       </div>
 
+      {/* Banner de Contexto de Ticket Transferido */}
+      {initialTicketDraft && (
+        <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs text-blue-900 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="w-4 h-4 text-blue-600 flex-shrink-0 animate-pulse" />
+            <div>
+              <span className="font-bold">Analizando ticket en borrador:</span>{' '}
+              <strong className="text-blue-950 font-bold">"{initialTicketDraft.asunto}"</strong>{' '}
+              <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-mono uppercase font-bold">
+                {initialTicketDraft.categoria || 'Soporte'}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onEscalate?.(initialTicketDraft)}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg shadow-xs transition cursor-pointer flex items-center gap-1"
+            >
+              <span>Crear Ticket Formal</span>
+              <span>→</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Chat Messages Log */}
-      <div className="border border-slate-200 rounded-xl bg-slate-50/50 p-5 min-h-[420px] max-h-[500px] overflow-y-auto space-y-4">
+      <div className="border border-slate-200 rounded-xl bg-slate-50/50 p-4 sm:p-5 min-h-[420px] max-h-[520px] overflow-y-auto space-y-4">
         {messages.map((m, idx) => (
           <div
             key={idx}
@@ -279,17 +402,15 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
             }`}
           >
             {m.sender === 'ai' && (
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-xs ${
-                m.isResolved ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
-              }`}>
-                {m.isResolved ? <CheckCircle2 className="w-4 h-4" /> : 'IA'}
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-xs">
+                <Bot className="w-4 h-4" />
               </div>
             )}
 
             <div
-              className={`max-w-xl text-xs rounded-2xl p-4 space-y-2 shadow-2xs ${
+              className={`max-w-xl rounded-2xl p-4 space-y-2 text-xs shadow-xs ${
                 m.sender === 'user'
-                  ? 'bg-blue-600 text-white rounded-tr-none'
+                  ? 'bg-slate-900 text-white rounded-tr-none'
                   : m.isResolved
                   ? 'bg-emerald-50 text-slate-800 border border-emerald-300 rounded-tl-none'
                   : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'
@@ -297,14 +418,18 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
             >
               <div className="flex justify-between items-center text-[10px] opacity-70">
                 <span className="font-bold">
-                  {m.sender === 'user' ? (currentUser?.nombre ? `Tú (${currentUser.nombre})` : 'Tú (Colaborador)') : 'Asistente Virtual RIALSA'}
+                  {m.sender === 'user'
+                    ? currentUser?.nombre
+                      ? `Tú (${currentUser.nombre})`
+                      : 'Tú (Colaborador)'
+                    : 'Asistente Virtual RIALSA'}
                 </span>
                 <span>{m.timestamp}</span>
               </div>
 
-              <p className="leading-relaxed">{m.text}</p>
+              <p className="leading-relaxed whitespace-pre-line">{m.text}</p>
 
-              {m.steps && (
+              {m.steps && m.steps.length > 0 && (
                 <div className="pt-2 border-t border-slate-100 space-y-1.5">
                   <strong className="block text-slate-900 font-bold">Pasos de resolución recomendados:</strong>
                   <ol className="list-decimal list-inside space-y-1 text-slate-700 pl-1 leading-relaxed">
@@ -321,9 +446,11 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
                     <BookOpen className="w-3.5 h-3.5" />
                     <span>Cita Oficial: {m.citation}</span>
                   </span>
-                  <span className="text-slate-400 text-[10px] font-mono">
-                    Similitud: {m.similarity}
-                  </span>
+                  {m.similarity && (
+                    <span className="text-slate-400 text-[10px] font-mono">
+                      Confianza: {m.similarity}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -341,102 +468,169 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({ onEscalate, currentUs
             <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
               <Loader2 className="w-4 h-4 animate-spin" />
             </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-3.5 text-xs text-slate-500 flex items-center gap-2">
+            <div className="bg-white border border-slate-200 rounded-2xl p-3.5 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
               <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
-              <span>Consultando microservicio FastAPI RAG en puerto 8000...</span>
+              <span>Analizando consulta con el motor de IA y base de conocimiento...</span>
             </div>
           </div>
         )}
+
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Action Buttons (Feedback / Escalation) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
-        <button
-          type="button"
-          onClick={handleResolved}
-          disabled={isCaseResolved}
-          className={`font-semibold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-xs transition ${
-            isCaseResolved
-              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-          }`}
-        >
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>{isCaseResolved ? '✓ Caso Marcado como Resuelto' : 'Sí, quedó resuelto'}</span>
-        </button>
+      {/* Action Decision Buttons */}
+      {!isCaseResolved && (
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleResolved}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Sí, quedó resuelto</span>
+            </button>
 
-        <button
-          type="button"
-          onClick={handleNotWorking}
-          disabled={isCaseResolved || attemptCount >= 3}
-          className={`font-semibold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-xs transition ${
-            attemptCount >= 3
-              ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
-              : 'bg-slate-800 hover:bg-slate-900 text-white'
-          }`}
-        >
-          <XCircle className="w-3.5 h-3.5" />
-          <span>
-            {attemptCount === 1 && 'No funcionó (Intento 2/3)'}
-            {attemptCount === 2 && 'No funcionó (Intento 3/3 - Escalar)'}
-            {attemptCount >= 3 && 'Límite de intentos alcanzado'}
-          </span>
-        </button>
+            <button
+              type="button"
+              onClick={handleNotWorking}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <XCircle className="w-4 h-4 text-slate-500" />
+              <span>No funcionó, dame otra alternativa</span>
+            </button>
+          </div>
 
-        <button
-          type="button"
-          onClick={onEscalate}
-          className={`font-semibold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-xs transition ${
-            attemptCount >= 3
-              ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse ring-2 ring-red-400'
-              : 'bg-red-600 hover:bg-red-700 text-white'
-          }`}
-        >
-          <AlertTriangle className="w-3.5 h-3.5" />
-          <span>Escalar a técnico humano</span>
-        </button>
-      </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onEscalate?.(initialTicketDraft || undefined)}
+              className={`text-xs font-bold px-4 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm cursor-pointer ${
+                attemptCount >= 3
+                  ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
+                  : 'bg-slate-900 hover:bg-black text-white'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4 text-amber-300" />
+              <span>
+                {attemptCount >= 3 ? 'Escalar a técnico humano (Recomendado)' : 'Escalar a soporte'}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* Input Message Box */}
-      <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-        <div className="relative flex-1">
+      {/* Input Form */}
+      <div className="pt-2">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend();
+          }}
+          className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl p-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-600 transition"
+        >
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             disabled={isLoading}
-            placeholder="Escribe tu mensaje o duda técnica (ej: 'Fallo con la VPN', 'Error en factura ERP')..."
-            className="w-full text-xs pl-3.5 pr-10 py-3 border border-slate-300 rounded-xl text-slate-900 bg-white placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
+            placeholder="Escribe tu consulta técnica, describe una falla o haz una pregunta..."
+            className="flex-1 bg-transparent text-xs text-slate-900 placeholder-slate-400 focus:outline-none px-2"
           />
-          <button
-            type="button"
-            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition"
-            title="Adjuntar captura de pantalla"
-          >
-            <Paperclip className="w-4 h-4" />
-          </button>
-        </div>
 
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={isLoading || !inputText.trim()}
-          className="bg-slate-900 hover:bg-black disabled:bg-slate-400 text-white px-5 py-3 rounded-xl text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>Pensando...</span>
-            </>
-          ) : (
-            <>
-              <span>Enviar</span>
-              <Send className="w-3.5 h-3.5" />
-            </>
-          )}
-        </button>
+          <motion.button
+            type="submit"
+            disabled={!inputText.trim() || isLoading}
+            whileHover={shouldReduceMotion ? undefined : { scale: 1.05 }}
+            whileTap={shouldReduceMotion ? undefined : { scale: 0.95 }}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white p-2.5 rounded-lg shadow-sm transition cursor-pointer"
+            title="Enviar mensaje"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </motion.button>
+        </form>
       </div>
+
+      {/* Modal para configurar API Key de Google Gemini (Opcional) */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
+                <KeyRound className="w-4 h-4 text-blue-600" />
+                <span>Configurar Motor de IA (Google Gemini)</span>
+              </div>
+              <button
+                onClick={() => setShowApiKeyModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              El sistema ya cuenta con el <strong>Motor Autónomo RIALSA</strong> activo por defecto. Si deseas conectar el modelo real de <strong>Google Gemini 1.5/2.0 Flash</strong>, ingresa tu API Key gratuita de{' '}
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 font-bold underline inline-flex items-center gap-0.5"
+              >
+                Google AI Studio <ExternalLink className="w-3 h-3" />
+              </a>:
+            </p>
+
+            <form onSubmit={handleSaveGeminiKey} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  Gemini API Key:
+                </label>
+                <input
+                  type="password"
+                  value={geminiKeyInput}
+                  onChange={(e) => setGeminiKeyInput(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white placeholder-slate-400 focus:outline-none focus:border-blue-600 font-mono"
+                />
+              </div>
+
+              <div className="flex justify-between items-center pt-2">
+                {geminiKeyActive && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.removeItem('rialsa_gemini_api_key');
+                      setGeminiKeyInput('');
+                      setGeminiKeyActive(false);
+                      setActiveModelName('Motor Neuronal RIALSA (RAG)');
+                      setShowApiKeyModal(false);
+                    }}
+                    className="text-red-600 hover:underline text-[11px]"
+                  >
+                    Desconectar API Key
+                  </button>
+                )}
+                <div className="flex gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKeyModal(false)}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-1.5 rounded-lg shadow-xs flex items-center gap-1"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Guardar y Activar</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

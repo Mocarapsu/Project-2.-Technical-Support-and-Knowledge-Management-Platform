@@ -76,6 +76,12 @@ export const FigmaTicketsApp: React.FC = () => {
   const [liveToast, setLiveToast] = useState<AppNotification | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string>('TCK-1048');
   const [isDbModalOpen, setIsDbModalOpen] = useState<boolean>(false);
+  const [ticketDraftForAi, setTicketDraftForAi] = useState<{
+    asunto: string;
+    descripcion: string;
+    categoria: string;
+    prioridad: string;
+  } | null>(null);
 
   // Sincronización en Tiempo Real con Supabase (PostgreSQL Cloud)
   useEffect(() => {
@@ -505,7 +511,14 @@ export const FigmaTicketsApp: React.FC = () => {
               {currentScreen === 'empleado_asistente_ia' && (
                 <EmployeeAiAssistantView
                   currentUser={currentUser}
-                  onEscalate={() => handleNavigate('empleado_nuevo')}
+                  initialTicketDraft={ticketDraftForAi}
+                  onClearDraft={() => setTicketDraftForAi(null)}
+                  onEscalate={(draft) => {
+                    if (draft) {
+                      setTicketDraftForAi(draft as any);
+                    }
+                    handleNavigate('empleado_nuevo');
+                  }}
                 />
               )}
 
@@ -523,9 +536,21 @@ export const FigmaTicketsApp: React.FC = () => {
 
               {currentScreen === 'empleado_nuevo' && (
                 <EmployeeNewTicketView
-                  onCancel={() => handleNavigate('empleado_mis_tickets')}
-                  onSubmitTicket={handleCreateTicket}
-                  onTryAiFirst={() => handleNavigate('empleado_asistente_ia')}
+                  initialDraft={ticketDraftForAi}
+                  onCancel={() => {
+                    setTicketDraftForAi(null);
+                    handleNavigate('empleado_mis_tickets');
+                  }}
+                  onSubmitTicket={(ticketData) => {
+                    handleCreateTicket(ticketData);
+                    setTicketDraftForAi(null);
+                  }}
+                  onTryAiFirst={(draft) => {
+                    if (draft && (draft.asunto || draft.descripcion)) {
+                      setTicketDraftForAi(draft);
+                    }
+                    handleNavigate('empleado_asistente_ia');
+                  }}
                 />
               )}
 
