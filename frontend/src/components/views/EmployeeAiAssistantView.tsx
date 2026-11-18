@@ -161,9 +161,10 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({
   };
 
   // Enviar mensaje al Asistente IA
-  const handleSend = async () => {
-    if (!inputText.trim() || isLoading) return;
-    const userText = inputText.trim();
+  const handleSend = async (overrideText?: string) => {
+    const textToSend = (typeof overrideText === 'string' ? overrideText : inputText).trim();
+    if (!textToSend || isLoading) return;
+    const userText = textToSend;
     const time = getTimeNow();
 
     setLastProblemSubject(userText);
@@ -462,6 +463,37 @@ export const EmployeeAiAssistantView: React.FC<Props> = ({
             )}
           </div>
         ))}
+
+        {messages.length <= 1 && !isLoading && (
+          <div className="pt-2 pb-1 space-y-2">
+            <p className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
+              <span>💡 Ejemplos comunes de ayuda en lenguaje cotidiano (haz clic para probar):</span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                'No tengo internet en mi compu',
+                'La impresora se tragó una hoja',
+                'Olvidé mi contraseña de Windows',
+                'La pantalla se puso negra / no da señal',
+                'Mi compu está super lenta y se congela',
+                'No me escuchan en Teams',
+                'No me deja facturar en el sistema',
+                'No conecta la VPN desde mi casa',
+                'No puedo abrir la carpeta de mi área',
+                '¡Cuéntame un chiste!'
+              ].map((pill, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleSend(pill)}
+                  className="text-[11px] bg-white hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-full transition cursor-pointer shadow-2xs font-medium text-left"
+                >
+                  {pill}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {isLoading && (
           <div className="flex items-center gap-3">

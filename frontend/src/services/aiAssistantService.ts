@@ -1,7 +1,13 @@
 /**
  * Servicio Inteligente de Asistencia Técnica con IA (RIALSA - Grupo Industrial Delnorte)
- * Soporta Google Gemini API (Nativo), Microservicio Python FastAPI (localhost:8000),
- * y Motor Autónomo Neuronal en Navegador (100% funcional en Vercel sin servidor).
+ * Diseñado para entender lenguaje natural coloquial, no técnico y cotidiano
+ * de empleados de planta y oficinas administrativas (ej: "no jala", "se tragó el papel",
+ * "pantalla negra", "olvidé la clave", "no me escuchan en la llamada", "no tengo internet").
+ * 
+ * Soporta:
+ * 1. Google Gemini API (Cloud LLM en tiempo real si el usuario provee API Key).
+ * 2. Microservicio Python FastAPI (localhost:8000 si está corriendo localmente).
+ * 3. Motor Autónomo Neuronal Semántico en Navegador (100% funcional en Vercel sin servidor).
  */
 
 export interface AiDiagnosticResult {
@@ -19,6 +25,22 @@ export interface TicketDraftContext {
   descripcion: string;
   categoria: string;
   prioridad?: string;
+}
+
+/**
+ * Normaliza texto eliminando acentos, puntuación extra y convirtiendo a minúsculas
+ * para que búsquedas coloquiales como "contraseña", "contrasena", "pantallazo", etc.,
+ * coincidan sin importar la ortografía o modismos.
+ */
+export function normalizeText(text: string): string {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Quita acentos (á->a, é->e, etc.)
+    .replace(/[^\w\s]/gi, ' ')        // Quita signos de puntuación
+    .replace(/\s+/g, ' ')             // Espacios múltiples a uno solo
+    .trim();
 }
 
 const IT_JOKES = [
@@ -51,124 +73,361 @@ const IT_JOKES = [
   }
 ];
 
-const KB_CATALOG = [
+export interface KbArticleDefinition {
+  codigo: string;
+  titulo: string;
+  categoria: string;
+  problemaColoquial: string;
+  explicacionSencilla: string;
+  frasesColoquiales: string[];
+  palabrasClave: string[];
+  pasosSencillos: string[];
+}
+
+/**
+ * Catálogo completo de 15 Manuales Oficiales de GID con mapeo de frases coloquiales
+ * y traducción empática a pasos en lenguaje sencillo sin tecnicismos innecesarios.
+ */
+export const FULL_KB_CATALOG: KbArticleDefinition[] = [
+  // 1. ZEBRA ETIQUETAS
   {
     codigo: 'KB-014',
     titulo: 'Calibración y solución de atascos en impresoras térmicas Zebra ZT230',
     categoria: 'Hardware',
-    keywords: ['zebra', 'zt230', 'etiqueta', 'etiquetas', 'embarque', 'termica', 'térmica', 'luz roja', 'parpadea', 'calibrar', 'calibracion'],
-    pasos: [
-      'Verifica que el cable de red LAN azul esté conectado firmemente al puerto posterior RJ45.',
-      'Mantén presionado el botón FEED durante 3 segundos hasta que expulse una etiqueta en blanco para auto-calibrar sensores.',
-      'Abre el compartimento lateral y asegura que la palanca dorada de presión del cabezal térmico esté trabada hacia abajo.',
-      'Si la luz roja parpadea, limpia el sensor óptico de medios con un hisopo con alcohol isopropílico.'
+    problemaColoquial: 'la impresora Zebra tiene luz roja, no imprime etiquetas o imprime chueco',
+    explicacionSencilla: 'En líneas de producción y embarque cada minuto cuenta. Cuando la Zebra parpadea con su foco en rojo o no alinea las etiquetas, se soluciona casi siempre con una auto-calibración de su sensor óptico.',
+    frasesColoquiales: [
+      'zebra con luz roja', 'luz roja parpadea', 'foco rojo parpadea', 'no saca etiquetas',
+      'impresora de etiquetas no jala', 'imprime chueco las etiquetas', 'se brinca las etiquetas',
+      'etiquetas encimadas', 'rollo de etiquetas atorado', 'la maquina de etiquetas',
+      'no salen las etiquetas de embarque', 'parpadea en rojo la zebra', 'calibrar la zebra'
+    ],
+    palabrasClave: ['zebra', 'zt230', 'etiqueta', 'etiquetas', 'embarque', 'termica', 'luz roja', 'foco rojo', 'parpadea', 'calibrar', 'calibracion', 'rollo', 'rollos', 'feed'],
+    pasosSencillos: [
+      'Abre la compuerta lateral y asegúrate de que la palanca dorada de presión del cabezal térmico esté bajada y trabada hacia abajo.',
+      'Mantén presionado el botón verde FEED durante 3 segundos continuos hasta que expulse una etiqueta sola para auto-calibrar sensores.',
+      'Verifica que el cable de red azul de atrás esté bien conectado a la pared.',
+      'Si la luz roja sigue parpadeando, limpia con un hisopo o toallita el pequeño sensor negro donde pasa la tira de etiquetas.'
     ]
   },
+
+  // 2. IMPRESORAS DE OFICINA (HP / RICOH / EPSON)
   {
     codigo: 'KB-018',
-    titulo: 'Cola de impresión bloqueada y atasco en impresoras de oficina (HP / Epson / Ricoh)',
+    titulo: 'Impresoras multifuncionales de oficina (HP / Ricoh / Epson): atascos y cola de impresión',
     categoria: 'Hardware',
-    keywords: ['impresora', 'imprimir', 'hp', 'epson', 'ricoh', 'canon', 'toner', 'tóner', 'cola', 'spooler', 'hoja', 'atasco', 'atascos'],
-    pasos: [
-      'Abre el menú Ejecutar (Win + R), escribe "services.msc" y busca el servicio "Cola de impresión" (Print Spooler).',
-      'Haz clic derecho y selecciona "Reiniciar" para liberar documentos trabados.',
-      'Abre la bandeja 2 y retira cualquier trozo de papel rasgado en los rodillos de alimentación.',
-      'Envía una página de prueba desde Propiedades de Impresora para validar el puerto TCP/IP 9100.'
+    problemaColoquial: 'la impresora se tragó una hoja, se atoró el papel o no saca tus impresiones',
+    explicacionSencilla: 'Entiendo tu urgencia por sacar tus documentos. Cuando la impresora "se traga el papel" o mandas imprimir y no hace nada, por lo regular es un documento atorado en la memoria de impresión de Windows o una hoja mordida en los rodillos.',
+    frasesColoquiales: [
+      'se trago el papel', 'se trago la hoja', 'se atoraron las hojas', 'la maquina no saca las hojas',
+      'no me deja imprimir', 'no imprime nada', 'documento trabado', 'impresora trabada',
+      'cola de impresion', 'papel atascado', 'hoja atorada', 'no sale la impresion',
+      'la impresora no agarra', 'impresora no jala', 'marca error la impresora',
+      'se quedo pegada la hoja', 'se trago las hojas', 'no imprime mi archivo',
+      'mando a imprimir y no hace nada', 'la impresora no responde', 'se atoro el papel'
+    ],
+    palabrasClave: ['impresora', 'imprimir', 'impresion', 'papel', 'hoja', 'hojas', 'atoro', 'atorado', 'atorada', 'atasco', 'atascos', 'trago', 'tragado', 'spooler', 'cola', 'toner', 'tinta', 'ricoh', 'hp', 'epson', 'canon'],
+    pasosSencillos: [
+      'Abre la bandeja de papel y la tapa frontal: retira suavemente cualquier pedacito de hoja que se haya doblado o quedado en los rodillos.',
+      'Presiona en tu teclado las teclas Windows + R, escribe "services.msc" y da Enter. Busca "Cola de impresión" (Print Spooler), dale clic derecho y elige "Reiniciar".',
+      'Esto limpiará los documentos atorados que impedían que tus nuevas impresiones salieran.',
+      'Vuelve a enviar tu impresión asegurándote de no mandar más de 20 hojas al mismo tiempo.'
     ]
   },
+
+  // 3. MONITORES Y PANTALLAS (HDMI / DISPLAYPORT)
+  {
+    codigo: 'KB-032',
+    titulo: 'Monitores sin señal de video, pantalla parpadeante y conexión HDMI / DisplayPort',
+    categoria: 'Hardware',
+    problemaColoquial: 'la pantalla se puso negra, parpadea o dice "Sin señal"',
+    explicacionSencilla: 'Es muy común asustarse cuando "la pantalla se pone negra", pero por lo general tu computadora sigue funcionando bien y solo se perdió la sincronización de video o el cable HDMI está flojo.',
+    frasesColoquiales: [
+      'la pantalla se puso negra', 'pantalla negra', 'no da video', 'el monitor no prende',
+      'no se ve nada', 'pantalla sin senal', 'parpadea la pantalla', 'el proyector no manda imagen',
+      'la segunda pantalla no se ve', 'pantalla parpadeando', 'rayas en la pantalla',
+      'se ve borroso', 'se apago el monitor', 'la compu prende pero la pantalla no',
+      'no detecta el monitor', 'cable de la tele no jala', 'pantalla muerta', 'pantalla en negro'
+    ],
+    palabrasClave: ['monitor', 'pantalla', 'video', 'senal', 'hdmi', 'displayport', 'negra', 'negro', 'prende', 'imagen', 'borroso', 'parpadea', 'proyector', 'segundo monitor', 'resolucion'],
+    pasosSencillos: [
+      'Presiona en tu teclado al mismo tiempo: Windows + Ctrl + Shift + B (escucharás un beep corto y la pantalla se reiniciará al instante).',
+      'Revisa por detrás del monitor y de tu computadora que el cable de video (HDMI o DisplayPort) esté bien enchufado y sin dobleces forzados.',
+      'Presiona la tecla Windows + P y selecciona la opción "Duplicar" o "Ampliar" para reactivar la señal.',
+      'Apaga y vuelve a encender el monitor usando su propio botón de encendido físico.'
+    ]
+  },
+
+  // 4. RENDIMIENTO, PANTALLA AZUL Y CONGELAMIENTOS
+  {
+    codigo: 'KB-077',
+    titulo: 'Diagnóstico de pantallas azules (BSOD), lentitud extrema y congelamiento en Windows 11',
+    categoria: 'Hardware',
+    problemaColoquial: 'tu compu está muy lenta, se congela o te salió una pantalla azul con carita triste',
+    explicacionSencilla: 'Comprendo lo frustrante que es cuando la máquina "se traba" o "se congela" en medio del trabajo. Esto suele ocurrir cuando un programa se queda consumiendo toda la memoria o el disco.',
+    frasesColoquiales: [
+      'mi compu esta super lenta', 'la maquina se traba mucho', 'se congelo la pantalla',
+      'se pasmo la computadora', 'pantalla azul con carita triste', 'me salio una pantalla azul',
+      'se reinicia sola', 'se apaga de la nada', 'no responde el mouse', 'esta muy lenta la laptop',
+      'tarda horas en abrir', 'la computadora no responde', 'disco al cien',
+      'ruido raro en el ventilador', 'pantallazo azul', 'se quedo trabada'
+    ],
+    palabrasClave: ['lenta', 'lento', 'lentitud', 'traba', 'trabada', 'congela', 'congelada', 'pasmo', 'pasmada', 'pantalla azul', 'bsod', 'reinicia', 'apaga', 'carita triste', 'disco', 'ram', 'memoria', 'rendimiento', 'compu', 'maquina', 'windows'],
+    pasosSencillos: [
+      'Abre el Administrador de Tareas presionando Ctrl + Shift + Esc y revisa qué programa tiene el CPU o Disco en 100% para cerrarlo.',
+      'Desconecta cualquier memoria USB o disco portátil que hayas conectado hace poco.',
+      'Si se congeló por completo y no responde el cursor, mantén presionado el botón de encendido de la computadora durante 8 segundos para reiniciarla de forma segura.',
+      'Si te salió la pantalla azul con una carita triste, toma una foto del código de error (ej: DPC_WATCHDOG) para escalarlo con el técnico.'
+    ]
+  },
+
+  // 5. SAP ERP Y FACTURACIÓN
+  {
+    codigo: 'KB-105',
+    titulo: 'Bloqueo de documentos en SAP ERP (SM12 / VF01) y fallos de facturación',
+    categoria: 'Software',
+    problemaColoquial: 'no te deja facturar, timbrar o el sistema dice que otro usuario tiene abierto el documento',
+    explicacionSencilla: 'En ventas y almacén una factura detenida afecta las entregas. Esto pasa cuando una sesión previa se cerró abruptamente o se fue la luz, dejando un "candado de usuario" en el servidor de SAP.',
+    frasesColoquiales: [
+      'no me deja facturar', 'no puedo timbrar', 'error al timbrar',
+      'el sistema dice que alguien mas lo tiene abierto', 'documento bloqueado',
+      'me sale un candado en sap', 'no puedo hacer remisiones', 'error en el erp',
+      'se trabo la factura', 'no me deja guardar la factura', 'alguien mas esta usando el documento',
+      'remision bloqueada', 'no jala sap', 'error en sap'
+    ],
+    palabrasClave: ['sap', 'erp', 'factura', 'facturar', 'facturas', 'timbrar', 'timbrado', 'remision', 'remisiones', 'sm12', 'vf01', 'candado', 'bloqueado', 'bloqueada', 'abierto', 'folio fiscal'],
+    pasosSencillos: [
+      'Cierra todas las ventanas de SAP en tu computadora (si no quieren cerrar, usa Ctrl + Shift + Esc y dale "Finalizar tarea" a SAP GUI).',
+      'Espera 2 minutos: el servidor de SAP suele liberar los bloqueos huérfanos automáticamente.',
+      'Si el mensaje de candado persiste con tu propio usuario, solicita al supervisor de almacén liberar el candado en la transacción SM12.',
+      'Vuelve a entrar a la transacción VF01 para regenerar y timbrar la factura sin problemas.'
+    ]
+  },
+
+  // 6. OUTLOOK Y CORREO INSTITUCIONAL
+  {
+    codigo: 'KB-045',
+    titulo: 'Fallo de sincronización en Microsoft Outlook, buzón lleno y archivos OST dañados',
+    categoria: 'Software',
+    problemaColoquial: 'no puedes mandar correos, no te llegan mensajes o dice buzón lleno',
+    explicacionSencilla: 'El correo es vital para tu comunicación diaria. Si tus correos se quedan atorados en la "Bandeja de salida" o no entran mensajes, suele deberse a un archivo adjunto que sobrepasó los 25 MB o a que se saturó el buzón.',
+    frasesColoquiales: [
+      'no puedo enviar correos', 'no me llegan los correos', 'no puedo mandar mail',
+      'el correo no abre', 'se queda en bandeja de salida', 'dice buzon lleno',
+      'no me entran los mensajes de correo', 'outlook no responde', 'outlook se traba',
+      'error al mandar correo', 'el archivo es muy pesado para enviar', 'no sincroniza el correo',
+      'no jala el outlook'
+    ],
+    palabrasClave: ['correo', 'correos', 'mail', 'email', 'outlook', 'buzon', 'bandeja', 'adjunto', 'enviar', 'recibir', 'mensajes', 'exchange', 'ost', 'pst'],
+    pasosSencillos: [
+      'Revisa tu "Bandeja de salida": si hay un correo con un archivo de más de 20 Megas, dale clic derecho y bórralo (esos correos pesados traban la fila).',
+      'Cierra Outlook, presiona Windows + R, escribe "outlook.exe /safe" y da Enter para abrirlo a prueba de fallos.',
+      'En la parte superior haz clic en "Enviar y recibir" y pulsa "Actualizar carpeta".',
+      'Si tu buzón dice estar lleno, vacía la carpeta de "Elementos eliminados" y "Correo no deseado".'
+    ]
+  },
+
+  // 7. MICROSOFT TEAMS (AUDIO, MICRÓFONO Y CÁMARA)
+  {
+    codigo: 'KB-062',
+    titulo: 'Problemas de audio, micrófono y cámara web en Microsoft Teams',
+    categoria: 'Software',
+    problemaColoquial: 'no te escuchan en la llamada, no sirve tu micrófono o la cámara se ve negra',
+    explicacionSencilla: 'Es muy incómodo entrar a una reunión y que nadie te escuche o que tu cámara no dé video. Casi siempre se debe a que Teams tomó un micrófono o bocina diferente al que tienes conectado.',
+    frasesColoquiales: [
+      'no me escuchan en la llamada', 'no sirve mi microfono', 'no se oye mi voz',
+      'la camara se ve negra', 'no me ven en la junta', 'no los escucho en la llamada',
+      'no sale el audio en teams', 'teams no detecta mis audifonos', 'fallo en la videollamada',
+      'no se escucha nada en la reunion', 'camara apagada en llamada', 'no sirve el audio',
+      'microfono no jala'
+    ],
+    palabrasClave: ['teams', 'llamada', 'videollamada', 'junta', 'reunion', 'microfono', 'audio', 'camara', 'voz', 'escuchan', 'oyen', 'bocinas', 'audifonos'],
+    pasosSencillos: [
+      'Dentro de la reunión de Teams, haz clic en los 3 puntitos (...) de arriba > Configuración de dispositivo y confirma qué micrófono y bocinas están seleccionados.',
+      'Fíjate si el cable de tus audífonos tiene una ruedita o botón físico que esté silenciando el micrófono.',
+      'Ve a Configuración de Windows > Privacidad > Micrófono y comprueba que el acceso para Teams esté en "Permitido".',
+      'Desconecta tus audífonos o cámara USB y vuelve a conectarlos en otro puerto.'
+    ]
+  },
+
+  // 8. CONTRASEÑAS Y ACTIVE DIRECTORY
+  {
+    codigo: 'KB-102',
+    titulo: 'Restablecimiento de contraseña y desbloqueo de cuenta en Active Directory',
+    categoria: 'Acceso',
+    problemaColoquial: 'olvidaste tu contraseña, tu cuenta está bloqueada o no puedes iniciar sesión en tu compu',
+    explicacionSencilla: 'No te preocupes, olvidar la clave o bloquear la cuenta le pasa a todo el mundo. Las políticas de la empresa bloquean la cuenta tras varios intentos por seguridad para proteger tu usuario.',
+    frasesColoquiales: [
+      'se me olvido la contrasena', 'se me olvido la clave', 'no me deja entrar a mi compu',
+      'mi cuenta esta bloqueada', 'no puedo iniciar sesion', 'olvide mi contrasena',
+      'no entra mi clave', 'clave incorrecta', 'cambiar mi contrasena',
+      'contrasena vencida', 'usuario bloqueado', 'me dice cuenta bloqueada',
+      'no me acuerdo de mi clave', 'como cambio mi clave', 'bloquee mi usuario'
+    ],
+    palabrasClave: ['contrasena', 'password', 'clave', 'bloqueada', 'bloqueado', 'olvide', 'olvido', 'iniciar sesion', 'acceso', 'usuario', 'dominio', 'expirada', 'vencida', 'active directory'],
+    pasosSencillos: [
+      'Si tu cuenta se bloqueó por ingresar la clave incorrecta varias veces, espera 15 minutos: el sistema la desbloquea automáticamente.',
+      'Verifica que la tecla Bloq Mayús (Caps Lock) no esté encendida por equivocación.',
+      'Para cambiarla si tienes acceso a Windows, presiona Ctrl + Alt + Supr y selecciona "Cambiar una contraseña".',
+      'Si requieres acceso urgente ahora mismo, haz clic abajo en "Escalar a soporte" para que el técnico te la restablezca en 2 minutos.'
+    ]
+  },
+
+  // 9. MICROSOFT AUTHENTICATOR Y MFA
+  {
+    codigo: 'KB-110',
+    titulo: 'Configuración y resolución de problemas con Microsoft Authenticator (MFA)',
+    categoria: 'Acceso',
+    problemaColoquial: 'no te llega el código de verificación al celular o cambiaste de teléfono',
+    explicacionSencilla: 'Cuando cambias de celular o el código de 6 números no coincide, quedas imposibilitado para ingresar a tus correos y sistemas de la empresa.',
+    frasesColoquiales: [
+      'no me llega el codigo al celular', 'cambie de cel y no puedo entrar', 'cambie de telefono',
+      'no puedo entrar al authenticator', 'no me sale el numero de verificacion',
+      'el codigo no coincide', 'perdi mi celular y no puedo iniciar sesion',
+      'verificacion en dos pasos', 'token del cel no sirve', 'no me llega la notificacion al cel',
+      'autenticador no abre'
+    ],
+    palabrasClave: ['authenticator', 'mfa', 'codigo', 'celular', 'telefono', 'token', 'dos pasos', 'verificacion', 'cambie de cel', 'doble factor'],
+    pasosSencillos: [
+      'Abre la app Microsoft Authenticator en tu celular y asegúrate de que la fecha y hora de tu celular estén en "Automático" (si difiere por segundos, el código fallará).',
+      'Confirma que tu celular tenga señal de Wi-Fi o datos móviles activos.',
+      'En la pantalla de tu computadora da clic en "Iniciar sesión de otra manera" y elige recibir llamada o mensaje SMS.',
+      'Si compraste un teléfono nuevo y ya no tienes el anterior, escala tu caso para que soporte resetee tu método de autenticación.'
+    ]
+  },
+
+  // 10. CARPETAS COMPARTIDAS Y PERMISOS SMB
+  {
+    codigo: 'KB-155',
+    titulo: 'Gestión de permisos y acceso a carpetas compartidas de red (SMB)',
+    categoria: 'Acceso',
+    problemaColoquial: 'no puedes abrir la carpeta compartida de tu área o te dice "Acceso denegado"',
+    explicacionSencilla: 'Comprendo tu necesidad de abrir los archivos compartidos del equipo. Cuando aparece "Acceso denegado" o desaparece la unidad Z, suele ser porque la sesión de red se desautenticó.',
+    frasesColoquiales: [
+      'no puedo entrar a la carpeta de mi area', 'acceso denegado a la carpeta',
+      'no puedo ver los archivos compartidos', 'desaparecio el disco z',
+      'no abre la carpeta de red', 'no tengo permisos para abrir el archivo',
+      'me sale error de red al abrir archivo', 'carpeta compartida bloqueada',
+      'no veo los archivos de mi equipo'
+    ],
+    palabrasClave: ['carpeta', 'carpetas', 'compartida', 'archivos', 'servidor', 'disco z', 'permiso', 'acceso denegado', 'red', 'smb', 'srv archivos'],
+    pasosSencillos: [
+      'Presiona en tu teclado Windows + R, escribe "\\\\srv-archivos\\departamentos" y da Enter.',
+      'Si te pide usuario y contraseña, ingresa tu correo institucional completo y tu contraseña de Windows.',
+      'Si estás trabajando fuera de la empresa, asegúrate de que tu VPN esté previamente conectada.',
+      'Si cambiaste recientemente de puesto o departamento, tu jefe de área debe autorizar el alta de permisos con soporte.'
+    ]
+  },
+
+  // 11. TRABAJO REMOTO Y VPN GLOBALPROTECT
   {
     codigo: 'KB-231',
     titulo: 'Acceso y configuración VPN corporativa GlobalProtect fuera de oficina',
     categoria: 'Acceso',
-    keywords: ['vpn', 'globalprotect', 'remoto', 'casa', 'radius', 'token', 'mfa', 'credenciales', 'puerto', 'tunel', 'túnel'],
-    pasos: [
-      'Desconecta redes Wi-Fi públicas antes de conectar la VPN corporativa (requiere conexión WPA2/WPA3 segura).',
-      'Abre el cliente GlobalProtect, haz clic en Configuración > General y selecciona "Actualizar conexión".',
-      'Asegúrate de ingresar tu usuario sin el dominio @gid.com.mx en el campo de autenticación RADIUS.',
-      'Si el error persiste, abre PowerShell como Administrador y ejecuta: Restart-Service -Name PanGPS.'
+    problemaColoquial: 'no puedes conectar a los sistemas desde tu casa o la VPN marca error',
+    explicacionSencilla: 'Es muy frustrante querer avanzar en tus labores desde casa o de viaje y que la VPN "no quiera conectar". Suele deberse a microcortes de tu Wi-Fi o a ingresar el usuario con formato incorrecto.',
+    frasesColoquiales: [
+      'no puedo conectar desde mi casa', 'no entra la vpn', 'no me deja entrar al sistema desde mi casa',
+      'home office no conecta', 'error en la vpn', 'se cae la vpn', 'no puedo trabajar desde fuera',
+      'falla la conexion remota', 'globalprotect marca error', 'no conecta el trabajo remoto',
+      'la vpn se queda conectando'
+    ],
+    palabrasClave: ['vpn', 'globalprotect', 'casa', 'remoto', 'home office', 'fuera', 'tunel', 'conectar', 'radius'],
+    pasosSencillos: [
+      'Abre el programa GlobalProtect (el ícono de mundito junto al reloj de Windows).',
+      'Haz clic en las 3 rayitas de la esquina > Configuración > General y selecciona "Actualizar conexión".',
+      'En tu usuario de conexión ingresa únicamente tu nombre de usuario SIN "@gid.com.mx".',
+      'Si tu Wi-Fi de casa tiene baja señal, acércate al módem o prueba reiniciándolo.'
     ]
   },
-  {
-    codigo: 'KB-105',
-    titulo: 'Bloqueo de remisiones y timbrado fiscal en SAP / ERP',
-    categoria: 'Software',
-    keywords: ['sap', 'erp', 'remision', 'remisión', 'factura', 'facturar', 'timbrado', 'sm12', 'vf01', 'bloqueado', 'candado'],
-    pasos: [
-      'Cierra todas las instancias de SAP GUI abiertas en tu equipo mediante el Administrador de Tareas.',
-      'Solicita al supervisor de almacén liberar el candado en la transacción SM12 ingresando tu usuario de Windows.',
-      'Reingresa a la transacción VF01 para regenerar la remisión con el folio fiscal pendiente.',
-      'Verifica que el servicio RFC con el PAC de timbrado fiscal se encuentre en estado OK (verde).'
-    ]
-  },
-  {
-    codigo: 'KB-102',
-    titulo: 'Restablecimiento de contraseña y desbloqueo de cuenta en Dominio Active Directory GID',
-    categoria: 'Acceso',
-    keywords: ['contraseña', 'password', 'clave', 'bloqueada', 'cuenta', 'usuario', 'active directory', 'dominio', 'expirada', 'olvide', 'olvidé'],
-    pasos: [
-      'Espera 15 minutos si el bloqueo fue por intentos fallidos (la política corporativa desbloquea automáticamente tras este lapso).',
-      'Si necesitas acceso inmediato, el técnico de nivel 1 puede desbloquear tu cuenta desde la consola RSAT.',
-      'Para cambiarla desde tu equipo, pulsa Ctrl + Alt + Supr y selecciona "Cambiar una contraseña".',
-      'Debe contener mínimo 10 caracteres, una mayúscula, un número y un símbolo especial (@, #, $).'
-    ]
-  },
+
+  // 12. RED LOCAL, INTERNET Y CABLE ETHERNET
   {
     codigo: 'KB-008',
     titulo: 'Fallo de conexión de red LAN Ethernet, Wi-Fi o conmutador de planta',
     categoria: 'Redes',
-    keywords: ['red', 'internet', 'wifi', 'wi-fi', 'ethernet', 'lan', 'switch', 'conmutador', 'desconectado', 'cable', 'dns', 'ip', 'lento'],
-    pasos: [
-      'Verifica que el cable gris/azul RJ45 tenga los LEDs verde y ámbar parpadeando en la parte trasera del gabinete.',
-      'Abre la consola CMD y ejecuta "ipconfig /flushdns" seguido de "ipconfig /renew".',
-      'Comprueba que tu IP no empiece con 169.254 (indica que el servidor DHCP de planta no respondió).',
-      'Haz un ping de prueba a la puerta de enlace predeterminada: "ping 192.168.10.1".'
+    problemaColoquial: 'no tienes internet, la red no jala o el cable dice "Sin conexión"',
+    explicacionSencilla: 'Quedarse sin conexión te frena todo. Cuando la computadora dice "no hay internet" o "no jala la red", en el 90% de los casos es solo un falso contacto en el cable o la tarjeta de red desincronizada.',
+    frasesColoquiales: [
+      'no tengo internet', 'se fue el internet', 'no jala el internet', 'el internet no agarra',
+      'no cargan las paginas', 'no me abre google', 'sin conexion', 'cable de red desconectado',
+      'la compu no tiene red', 'se cayo el internet', 'no hay conexion', 'dice sin internet',
+      'triangulo amarillo en red', 'el cable no agarra', 'no conecta la red', 'se fue la red',
+      'no agarra el internet', 'no me puedo meter a internet', 'no entra al internet',
+      'se desconecto la red'
+    ],
+    palabrasClave: ['internet', 'red', 'cable', 'lan', 'ethernet', 'conectar', 'conexion', 'desconectado', 'paginas', 'google', 'enlace', 'puerto', 'rj45', 'ipconfig'],
+    pasosSencillos: [
+      'Revisa el cable gris o azul que va de la parte trasera de tu gabinete a la pared: desconéctalo y vuelve a encajarlo hasta escuchar un "click".',
+      'Verifica que las dos lucecitas en el puerto de red (verde o ámbar) estén encendidas o parpadeando.',
+      'Presiona en tu teclado Windows + R, escribe "cmd", presiona Enter y en la ventana negra escribe: "ipconfig /renew" para refrescar tu conexión.',
+      'Abre el navegador e intenta entrar a www.google.com para confirmar si ya navega con normalidad.'
     ]
   },
+
+  // 13. WI-FI CORPORATIVO
   {
-    codigo: 'KB-045',
-    titulo: 'Sincronización, buzón lleno y fallos de envío en Microsoft Outlook / Exchange',
-    categoria: 'Software',
-    keywords: ['correo', 'email', 'outlook', 'mensaje', 'buzon', 'buzón', 'pst', 'ost', 'adjunto', 'enviar', 'recibir', 'exchange'],
-    pasos: [
-      'Cierra Outlook, presiona Win + R, escribe "outlook.exe /safe" y presiona Enter para abrir en modo seguro sin complementos dañados.',
-      'Revisa el tamaño de tu buzón en Archivo > Herramientas > Limpieza de buzón (límite máximo: 50 GB).',
-      'Si un correo se quedó trabado en Bandeja de salida, desconecta el Wi-Fi, abre el mensaje y borra los adjuntos pesados (>25MB).',
-      'En la pestaña "Enviar y recibir", pulsa "Actualizar carpeta" para forzar sincronización con Exchange.'
+    codigo: 'KB-012',
+    titulo: 'Conexión a la red Wi-Fi institucional (WPA2-Enterprise) y certificados',
+    categoria: 'Redes',
+    problemaColoquial: 'el Wi-Fi de la empresa no conecta o se desconecta a cada rato',
+    explicacionSencilla: 'Sé lo tedioso que es que la red Wi-Fi se corte o no quiera enlazar tu laptop en las oficinas o salas de juntas de la empresa.',
+    frasesColoquiales: [
+      'no me conecta el wifi', 'se desconecta el wifi de la empresa',
+      'el internet inalambrico no jala', 'cual es la clave del wifi', 'wifi muy lento',
+      'no agarra la senal del wifi', 'se cae el wifi en la oficina',
+      'no puedo conectar mi laptop al wifi'
+    ],
+    palabrasClave: ['wifi', 'inalambrico', 'senial', 'red inalambrica', 'gid corp', 'desconecta', 'wpa2'],
+    pasosSencillos: [
+      'Apaga el Wi-Fi de tu laptop durante 10 segundos desde la barra de tareas y vuelve a encenderlo.',
+      'En la lista de redes, selecciona "GID-CORP", haz clic derecho y elige "Dejar de recordar esta red".',
+      'Vuelve a conectarte escribiendo tu usuario y contraseña de Windows cuando te lo pida.',
+      'Si estás en un área lejana o rodeada de maquinaria pesada, acércate a una antena del techo para mejor señal.'
     ]
   },
+
+  // 14. ANTIVIRUS, SEGURIDAD Y ALERTAS
   {
-    codigo: 'KB-077',
-    titulo: 'Pantalla azul (BSOD), lentitud extrema y congelamiento de Windows 11',
-    categoria: 'Hardware',
-    keywords: ['pantalla azul', 'bsod', 'lento', 'lentitud', 'congelado', 'traba', 'reinicia', 'memoria', 'ram', 'disco', 'cpu', 'windows'],
-    pasos: [
-      'Abre el Administrador de Tareas (Ctrl + Shift + Esc) y revisa qué proceso consume el 100% de Disco o CPU.',
-      'Desconecta memorias USB y periféricos externos recién agregados.',
-      'Abre CMD como Administrador y ejecuta "sfc /scannow" para reparar archivos del sistema operativo dañados.',
-      'Si aparece pantalla azul recurrente, anota el código de detención (ej. DPC_WATCHDOG_VIOLATION) para adjuntarlo al ticket.'
+    codigo: 'KB-180',
+    titulo: 'Protocolo ante alertas de seguridad, aislamiento de endpoint y Cortex XDR',
+    categoria: 'Seguridad',
+    problemaColoquial: 'el antivirus bloqueó un archivo o salió una alerta de amenaza',
+    explicacionSencilla: '¡Tranquilo! Si te apareció una advertencia de seguridad o el antivirus bloqueó un archivo, significa que los escudos de protección de Grupo Industrial Delnorte actuaron a tiempo para mantener tu equipo seguro.',
+    frasesColoquiales: [
+      'la compu dice que tiene virus', 'salio una alerta de virus', 'el antivirus bloqueo un archivo',
+      'ventana roja de peligro', 'dice que el equipo fue aislado',
+      'bloqueo un programa por seguridad', 'alerta de defender o cortex',
+      'creo que hackearon mi compu'
+    ],
+    palabrasClave: ['virus', 'antivirus', 'bloqueo', 'aislado', 'alerta', 'cortex', 'defender', 'amenaza', 'peligro', 'cuarentena'],
+    pasosSencillos: [
+      'No te preocupes ni intentes descargar programas externos para quitar la alerta.',
+      'Si el archivo bloqueado es un documento de trabajo legítimo, anota su nombre completo y ruta.',
+      'Desconecta cualquier memoria USB externa conectada a tu computadora.',
+      'Haz clic abajo en "Escalar a soporte" para que el equipo de ciberseguridad verifique el archivo y lo libere si es seguro.'
     ]
   },
-  {
-    codigo: 'KB-032',
-    titulo: 'Monitores sin señal, pantalla parpadeante y conexión HDMI / DisplayPort',
-    categoria: 'Hardware',
-    keywords: ['monitor', 'pantalla', 'hdmi', 'parpadea', 'displayport', 'proyector', 'segundo monitor', 'negro', 'video', 'resolucion'],
-    pasos: [
-      'Presiona la combinación de teclas "Win + Ctrl + Shift + B" para reiniciar el controlador gráfico de Windows al instante.',
-      'Revisa que el cable HDMI esté conectado firmemente y sin dobleces forzados.',
-      'Presiona "Win + P" y selecciona la opción "Duplicar" o "Ampliar" según tu necesidad.',
-      'Entra a Configuración > Pantalla > Pantalla avanzada y verifica que la frecuencia esté fijada en 60 Hz.'
-    ]
-  },
+
+  // 15. MEMORIAS USB BLOQUEADAS
   {
     codigo: 'KB-099',
     titulo: 'Política de seguridad NFR-08: Puertos USB bloqueados y protección DLP',
     categoria: 'Seguridad',
-    keywords: ['usb', 'bloqueada', 'pendrive', 'memoria', 'antivirus', 'fortinet', 'permiso', 'archivo', 'politica', 'política', 'ciso'],
-    pasos: [
-      'Por política de ciberseguridad industrial NFR-08, los puertos USB de almacenamiento masivo están restringidos para evitar fuga de información.',
-      'Para transferir archivos de trabajo, utiliza la carpeta compartida de red "\\\\srv-archivos\\departamentos" o OneDrive institucional.',
-      'Si requieres una excepción temporal autorizada, tu gerente de área debe solicitar la dispensa al equipo de CISO.'
+    problemaColoquial: 'la compu no detecta tu memoria USB o dice que el puerto está bloqueado',
+    explicacionSencilla: 'Es normal que te preguntes por qué tu memoria "no se abre" o "no te deja meter archivos". En todas las computadoras de la empresa los puertos USB están restringidos intencionalmente por política de seguridad industrial.',
+    frasesColoquiales: [
+      'no lee mi memoria usb', 'la compu no detecta mi pendrive', 'no me deja meter mi memoria',
+      'no puedo copiar archivos a mi memoria', 'el puerto usb no jala',
+      'dice que la usb esta bloqueada', 'no abre mi usb', 'como paso archivos a mi memoria',
+      'la computadora no reconoce el usb'
+    ],
+    palabrasClave: ['usb', 'memoria', 'pendrive', 'disco duro', 'copiar', 'puerto', 'bloqueada', 'reconoce', 'detecta', 'dlp', 'nfr 08'],
+    pasosSencillos: [
+      'Por política de ciberseguridad industrial NFR-08, los puertos USB de almacenamiento están deshabilitados para evitar virus y fuga de información.',
+      'Para respaldar o transferir tus documentos de trabajo, utiliza OneDrive institucional o la carpeta compartida de red de tu departamento.',
+      'Si requieres enviar archivos a un proveedor o cliente externo, compártelos mediante un enlace protegido de OneDrive por correo.',
+      'Si por necesidad estricta de tu puesto requieres usar memorias USB físicas, tu gerente debe solicitar la dispensa oficial al CISO.'
     ]
   }
 ];
@@ -179,7 +438,6 @@ export async function askAiAssistant(
   ticketContext?: TicketDraftContext
 ): Promise<AiDiagnosticResult> {
   const cleanPrompt = prompt.trim();
-  const lower = cleanPrompt.toLowerCase();
 
   // 1. Probar Google Gemini API si hay API Key configurada
   const geminiKey =
@@ -192,7 +450,7 @@ export async function askAiAssistant(
       const geminiResult = await callGeminiApi(cleanPrompt, geminiKey.trim(), ticketContext);
       if (geminiResult) return geminiResult;
     } catch (e) {
-      console.warn('[AI Service] Falló llamada a Gemini API, usando motor fallback:', e);
+      console.warn('[AI Service] Falló llamada a Gemini API, usando motor autónomo fallback:', e);
     }
   }
 
@@ -222,23 +480,29 @@ export async function askAiAssistant(
     // Si localhost:8000 no está disponible (ej. en Vercel), ejecutamos el motor neuronal del cliente
   }
 
-  // 3. MOTOR AUTÓNOMO NEURONAL RIALSA (En navegador - 100% disponible en Vercel)
-  return runAutonomousNeuralEngine(cleanPrompt, ticketContext);
+  // 3. MOTOR AUTÓNOMO COLOQUIAL RIALSA (En navegador - 100% disponible en Vercel)
+  return runAutonomousColloquialEngine(cleanPrompt, ticketContext);
 }
 
-function runAutonomousNeuralEngine(
+/**
+ * Motor Autónomo con entendimiento coloquial para usuarios no técnicos.
+ * Normaliza lenguaje, evalúa frases cotidianas ("no jala", "se tragó el papel", "no da video")
+ * y responde con empatía y sencillez.
+ */
+function runAutonomousColloquialEngine(
   prompt: string,
   ticketContext?: TicketDraftContext
 ): AiDiagnosticResult {
-  const lower = prompt.toLowerCase();
+  const normPrompt = normalizeText(prompt);
 
   // Caso: Chistes / Humor
   if (
-    lower.includes('chiste') ||
-    lower.includes('broma') ||
-    lower.includes('gracioso') ||
-    lower.includes('reir') ||
-    lower.includes('risa')
+    normPrompt.includes('chiste') ||
+    normPrompt.includes('broma') ||
+    normPrompt.includes('gracioso') ||
+    normPrompt.includes('reir') ||
+    normPrompt.includes('risa') ||
+    normPrompt.includes('cuenta un chiste')
   ) {
     const joke = IT_JOKES[Math.floor(Math.random() * IT_JOKES.length)];
     return {
@@ -254,21 +518,23 @@ function runAutonomousNeuralEngine(
 
   // Caso: Saludos
   if (
-    lower.startsWith('hola') ||
-    lower.startsWith('buen dia') ||
-    lower.startsWith('buenos dias') ||
-    lower.startsWith('buenas tardes') ||
-    lower.startsWith('buenas noches') ||
-    lower.startsWith('que tal') ||
-    lower.startsWith('saludos')
+    normPrompt.startsWith('hola') ||
+    normPrompt.startsWith('buen dia') ||
+    normPrompt.startsWith('buenos dias') ||
+    normPrompt.startsWith('buenas tardes') ||
+    normPrompt.startsWith('buenas noches') ||
+    normPrompt.startsWith('que tal') ||
+    normPrompt.startsWith('saludos') ||
+    normPrompt === 'oye' ||
+    normPrompt === 'ayuda'
   ) {
     return {
       respuesta:
-        '¡Hola! Soy tu Asistente Técnico RIALSA con IA de Grupo Industrial Delnorte. Estoy listo para ayudarte a diagnosticar y solucionar fallos en impresoras, VPN, SAP ERP, correo, redes o equipos.',
+        '¡Hola! Soy tu Asistente Técnico RIALSA de Grupo Industrial Delnorte. Sé que a veces la tecnología nos da dolores de cabeza: cuéntame con tus propias palabras qué está fallando o qué problema tienes y te guiaré paso a pasito para solucionarlo.',
       pasos: [
-        'Escribe tu problema o mensaje de error exacto aquí abajo.',
-        'Si tienes un ticket en borrador, puedo analizarlo antes de que lo envíes.',
-        'Te entregaré pasos guiados basados en las guías oficiales de GID.'
+        'Escribe aquí abajo lo que pasa (ej: "no puedo imprimir", "mi compu está lenta", "olvidé mi contraseña").',
+        'No te preocupes por usar términos técnicos; dime lo que ves en la pantalla.',
+        'Te daré los pasos más fáciles para arreglarlo antes de tener que esperar a un técnico.'
       ],
       cita: 'Guía de Asistencia Técnica RIALSA · Manual Operativo GID',
       similitud: '0.98',
@@ -279,21 +545,21 @@ function runAutonomousNeuralEngine(
 
   // Caso: Agradecimiento
   if (
-    lower.includes('gracias') ||
-    lower.includes('muchas gracias') ||
-    lower.includes('listo') ||
-    lower.includes('quedo') ||
-    lower.includes('quedó') ||
-    lower.includes('ya funciono') ||
-    lower.includes('ya funcionó')
+    normPrompt.includes('gracias') ||
+    normPrompt.includes('muchas gracias') ||
+    normPrompt.includes('listo') ||
+    normPrompt.includes('quedo') ||
+    normPrompt.includes('ya funciono') ||
+    normPrompt.includes('ya jalo') ||
+    normPrompt.includes('ya quedo')
   ) {
     return {
       respuesta:
-        '¡Con mucho gusto! Me alegra que el procedimiento haya funcionado y tu equipo esté operando con normalidad.',
+        '¡Qué gran noticia! Me alegra mucho que lo hayas podido resolver y que ya puedas seguir trabajando sin problemas.',
       pasos: [
-        'No es necesario abrir un ticket adicional con la mesa de ayuda.',
-        'Tu sesión de autogestión ha sido contabilizada como resuelta por IA.',
-        'Si surge cualquier otra eventualidad, aquí estaré para asistirte.'
+        'No necesitas abrir ningún ticket con soporte técnico; tu problema quedó solucionado.',
+        'Tu sesión se contabilizó exitosamente como resuelta por autogestión con IA.',
+        'Cualquier otra duda que tengas, aquí sigo disponible para ayudarte.'
       ],
       cita: 'Protocolo de Cierre RAG · RIALSA Knowledge Base',
       similitud: '1.00',
@@ -302,56 +568,76 @@ function runAutonomousNeuralEngine(
     };
   }
 
-  // Si viene contexto de ticket, combinamos las palabras clave
-  const combinedText = ticketContext
-    ? `${prompt} ${ticketContext.asunto} ${ticketContext.descripcion} ${ticketContext.categoria}`.toLowerCase()
-    : lower;
+  // Construir texto combinado si hay contexto de ticket
+  const combinedRaw = ticketContext
+    ? `${prompt} ${ticketContext.asunto || ''} ${ticketContext.descripcion || ''} ${ticketContext.categoria || ''}`
+    : prompt;
+  const combinedNorm = normalizeText(combinedRaw);
 
-  // Búsqueda semántica ponderada en catálogo
-  let bestMatch: (typeof KB_CATALOG)[0] | null = null;
+  // Algoritmo de ponderación semántica coloquial
+  let bestMatch: KbArticleDefinition | null = null;
   let bestScore = 0;
 
-  for (const art of KB_CATALOG) {
+  for (const art of FULL_KB_CATALOG) {
     let score = 0;
-    for (const kw of art.keywords) {
-      if (combinedText.includes(kw)) {
+
+    // 1. Coincidencia de frases coloquiales exactas (+4 puntos por frase)
+    for (const phrase of art.frasesColoquiales) {
+      const normPhrase = normalizeText(phrase);
+      if (combinedNorm.includes(normPhrase)) {
+        score += 4;
+      }
+    }
+
+    // 2. Coincidencia de palabras clave individuales (+1 punto por palabra)
+    for (const kw of art.palabrasClave) {
+      const normKw = normalizeText(kw);
+      // Evitar que subcadenas muy cortas den falsos positivos
+      if (normKw.length >= 3 && combinedNorm.includes(normKw)) {
         score += 1;
       }
     }
+
+    // 3. Coincidencia de categoría si el usuario la seleccionó (+2 puntos)
+    if (ticketContext?.categoria && normalizeText(ticketContext.categoria) === normalizeText(art.categoria)) {
+      score += 2;
+    }
+
     if (score > bestScore) {
       bestScore = score;
       bestMatch = art;
     }
   }
 
-  if (bestMatch && bestScore >= 1) {
-    const sim = Math.min(0.96, 0.8 + bestScore * 0.04).toFixed(2);
-    const headerMsg = ticketContext?.asunto
-      ? `He analizado tu solicitud para "${ticketContext.asunto}". Según el manual ${bestMatch.codigo} de GID, te sugiero el siguiente procedimiento:`
-      : `He localizado el procedimiento oficial en la Base de Conocimiento de GID para resolver tu reporte sobre "${prompt}":`;
+  // Si encontramos una coincidencia relevante (score >= 2)
+  if (bestMatch && bestScore >= 2) {
+    const sim = Math.min(0.98, 0.82 + bestScore * 0.02).toFixed(2);
+    const encabezado = ticketContext?.asunto
+      ? `Te entiendo perfectamente. Analicé lo que reportas sobre "${ticketContext.asunto}": parece que ${bestMatch.problemaColoquial}.\n\n${bestMatch.explicacionSencilla}`
+      : `Te entiendo perfectamente. Según lo que describes, parece que ${bestMatch.problemaColoquial}.\n\n${bestMatch.explicacionSencilla}`;
 
     return {
-      respuesta: headerMsg,
-      pasos: bestMatch.pasos,
+      respuesta: encabezado,
+      pasos: bestMatch.pasosSencillos,
       cita: `Artículo ${bestMatch.codigo}: ${bestMatch.titulo}`,
       similitud: sim,
-      modelo: 'Base Vectorial Integrada RIALSA (qwen2.5-coder)',
+      modelo: 'Motor Inteligente RIALSA (Comprensión Coloquial)',
       requiereEscalado: false
     };
   }
 
-  // Diagnóstico contextual dinámico si no hay coincidencia directa
-  const subjectSnippet = ticketContext?.asunto || prompt.slice(0, 40);
+  // Diagnóstico contextual amigable si no se identificó con exactitud
+  const subjectSnippet = ticketContext?.asunto || prompt.slice(0, 45);
   return {
-    respuesta: `He analizado tu reporte: "${subjectSnippet}". Para aislar este incidente antes de requerir la presencia de un técnico, sigue estas comprobaciones iniciales:`,
+    respuesta: `He analizado tu reporte: "${subjectSnippet}". Como no mencionaste un sistema específico o el mensaje exacto de la pantalla, vamos a descartar lo más común con estos pasos sencillos:`,
     pasos: [
-      'Verifica que el equipo y periféricos asociados tengan alimentación eléctrica continua y cables de comunicación firmes.',
-      'Cierra y reinicia la aplicación o servicio afectado para purgar memoria temporal y conexiones colgadas.',
-      'Comprueba si la incidencia ocurre en otros equipos de tu área para descartar un fallo general de red o servidor.',
-      'Si tras estos pasos persiste la falla, utiliza el botón "Escalar a técnico humano" para crear el ticket con prioridad automática.'
+      'Paso 1: Revisa que todos los cables de tu equipo (corriente, pantalla e internet) estén bien conectados y no flojos.',
+      'Paso 2: Cierra el programa con el que tienes problemas, espera 10 segundos y vuelve a abrirlo.',
+      'Paso 3: Si nada responde, reinicia tu computadora; esto soluciona la mayoría de los bloqueos temporales.',
+      'Si tras estos pasos sigue sin funcionar, presiona el botón "Escalar a técnico humano" para que un especialista te atienda de inmediato.'
     ],
     cita: 'Guía de Diagnóstico y Aislamiento de Incidencias GID (IT-STD-09)',
-    similitud: '0.78',
+    similitud: '0.80',
     modelo: 'Motor de Razonamiento RIALSA',
     requiereEscalado: true
   };
@@ -367,15 +653,22 @@ async function callGeminiApi(
     : '';
 
   const systemPrompt = `Eres el Asistente Técnico Oficial de RIALSA (Grupo Industrial Delnorte). 
-Ayuda a empleados a resolver problemas de TI (impresoras, VPN, SAP, correo, redes, contraseñas, Windows).
-Si el usuario pide un chiste o bromea, cuéntale un chiste de informáticos gracioso en español.
-Si es una consulta técnica, responde con pasos estructurados y cita un manual corporativo ficticio (ej. KB-231).
+IMPORTANTE Y MANDATORIO: Los usuarios de planta y oficinas administrativas son personas trabajadoras que NO hablan con términos técnicos (usan frases coloquiales como "la compu no jala", "se tragó el papel", "no da video", "pantalla negra", "no me deja entrar", "se me fue el net", "no me escuchan en la llamada", "se me olvidó la clave").
+Tu misión es ATINARLE exactamente a lo que les pasa con empatía y calidez humana.
+
+Instrucciones de respuesta:
+1. Habla en un tono amigable, empático y en español de México/Latinoamérica.
+2. Explica en una o dos frases sencillas por qué suele pasar ese problema (sin tecnicismos complejos).
+3. Da pasos de solución numerados, ultra sencillos y fáciles de seguir para cualquiera.
+4. Si el usuario te pide un chiste o bromea, responde con un chiste gracioso de soporte o programadores.
+5. Cita un manual oficial de Grupo Industrial Delnorte correspondiente (ej: KB-018 para impresoras, KB-032 para monitores, KB-008 para internet, etc.).
+
 Responde en formato JSON con la siguiente estructura exacta:
 {
-  "respuesta": "Texto explicativo cordial",
+  "respuesta": "Texto cálido y empático reconociendo el problema en palabras sencillas",
   "pasos": ["Paso 1...", "Paso 2...", "Paso 3..."],
   "cita": "Artículo KB-xxx: Título del manual",
-  "similitud": "0.95",
+  "similitud": "0.96",
   "requiereEscalado": false
 }`;
 
@@ -388,7 +681,7 @@ Responde en formato JSON con la siguiente estructura exacta:
         contents: [
           {
             role: 'user',
-            parts: [{ text: `${systemPrompt}\n${contextPrompt}\nConsulta del usuario: ${prompt}` }]
+            parts: [{ text: `${systemPrompt}\n${contextPrompt}\nConsulta o mensaje del usuario: "${prompt}"` }]
           }
         ],
         generationConfig: {
@@ -406,12 +699,11 @@ Responde en formato JSON con la siguiente estructura exacta:
 
   const parsed = JSON.parse(rawText);
   return {
-    respuesta: parsed.respuesta || 'He analizado tu consulta técnica.',
-    pasos: Array.isArray(parsed.pasos) ? parsed.pasos : ['Revisar cables y reiniciar equipo'],
+    respuesta: parsed.respuesta || 'He analizado tu consulta.',
+    pasos: Array.isArray(parsed.pasos) ? parsed.pasos : ['Revisar cables y reiniciar equipo.'],
     cita: parsed.cita || 'Base de Conocimiento RIALSA GID',
-    similitud: String(parsed.similitud || '0.94'),
+    similitud: String(parsed.similitud || '0.95'),
     modelo: 'Google Gemini 1.5 Flash (Cloud LLM)',
     requiereEscalado: Boolean(parsed.requiereEscalado)
   };
 }
-
