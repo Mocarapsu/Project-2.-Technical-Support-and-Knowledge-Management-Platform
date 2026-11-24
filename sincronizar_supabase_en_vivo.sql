@@ -22,6 +22,3 @@ CREATE POLICY "Anon full access technicians" ON public.technicians FOR ALL TO an
 
 DROP POLICY IF EXISTS "Anon full access notifications" ON public.notifications;
 CREATE POLICY "Anon full access notifications" ON public.notifications FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
--- 3. Habilitar Realtime para que los cambios se reflejen al segundo sin recargar la página
-ALTER PUBLICATION supabase_realtime ADD TABLE public.tickets;
