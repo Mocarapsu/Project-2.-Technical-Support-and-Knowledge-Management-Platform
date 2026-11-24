@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Los datos de demostración se ejecutan de forma aislada en desarrollo. El build
-// de producción nunca admite acceso rápido ni autenticación local simulada.
-export const DEMO_MODE = import.meta.env.DEV && import.meta.env.VITE_DEMO_MODE === 'true';
+// Modo de demostración activo por defecto (en local y en Vercel para pruebas de evaluación),
+// a menos que se configure explícitamente VITE_DEMO_MODE=false.
+export const DEMO_MODE = import.meta.env.VITE_DEMO_MODE !== 'false';
 export function cleanSupabaseUrl(raw: string): string {
   return (raw || '').trim().replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '');
 }
