@@ -14,7 +14,7 @@ import { AdminDashboard } from './AdminDashboard';
 import { LoginSplitView } from './auth/LoginSplitView';
 import { AuthModalViews } from './auth/AuthModalViews';
 import { ActiveScreen, AuthScreen, TicketItem, TicketPriority, TechnicianProfile, UserAccount, AppNotification, RoleMode } from '../types/figma-tickets';
-import { getStoredTickets, saveStoredTickets, getStoredTechnicians, saveStoredTechnicians, getCurrentSessionUser, setCurrentSessionUser, getStoredUsers, saveNewUser, getStoredNotifications, saveStoredNotifications, DEFAULT_USERS } from '../services/db';
+import { getStoredTickets, saveStoredTickets, getStoredTechnicians, saveStoredTechnicians, getCurrentSessionUser, setCurrentSessionUser, getStoredUsers, saveNewUser, getStoredNotifications, saveStoredNotifications, DEFAULT_USERS, fetchCloudTickets, saveCloudTicket } from '../services/db';
 import { DEMO_MODE, supabase } from '../services/supabaseClient';
 import { loadCloudProfile, loadWorkspace, cloudTicketAction, cloudMarkRead, cloudAddTechnician, signOutCloud } from '../services/cloudWorkspace';
 import { canViewTicket, visibleTicket, notificationVisible, normalizeCategory, PRIORITIES, CATEGORIES, textOnlyIcon, slaText } from '../services/ticketDomain';
@@ -58,9 +58,22 @@ export const FigmaTicketsApp:React.FC = () => {
     const {id,nombre,email,rol,departamento,estado,fechaRegistro}=next;
     const safe={id,nombre,email,rol,departamento,estado,fechaRegistro};
     setUser(safe);setCurrentSessionUser(safe);setScreen(home(safe));setSelectedId(null);setDraft(null);setToast(null);setError('');setBusy(false);setMobileOpen(false);
-    if(DEMO_MODE){setTickets(getStoredTickets());setTechnicians(getStoredTechnicians());setNotifications(getStoredNotifications());}
+    if(DEMO_MODE){
+      setTickets(getStoredTickets());
+      setTechnicians(getStoredTechnicians());
+      setNotifications(getStoredNotifications());
+      void fetchCloudTickets().then(cloud=>{if(cloud&&cloud.length>0)setTickets(cloud);});
+    }
     else {setTickets([]);setTechnicians([]);setNotifications([]);setLoading(true);setConnected(false);}
   }
+  useEffect(()=>{
+    void fetchCloudTickets().then(cloud=>{if(cloud&&cloud.length>0)setTickets(cloud);});
+    if(!supabase)return;
+    const channel=supabase.channel('public:tickets:realtime').on('postgres_changes',{event:'*',schema:'public',table:'tickets'},()=>{
+      void fetchCloudTickets().then(cloud=>{if(cloud&&cloud.length>0)setTickets(cloud);});
+    }).subscribe();
+    return ()=>{supabase?.removeChannel(channel);};
+  },[]);
   useEffect(()=>{
     if(DEMO_MODE){setChecking(false);return;}
     let active=true;
@@ -143,7 +156,9 @@ export const FigmaTicketsApp:React.FC = () => {
     const techs=getStoredTechnicians().filter(t=>t.estado!=='Ocupado').sort((a,b)=>all.filter(t=>t.asignacion===a.nombre&&t.estado!=='Resuelto').length-all.filter(t=>t.asignacion===b.nombre&&t.estado!=='Resuelto').length);
     const assigned=techs[0]?.nombre||'Sin asignar';const ts=new Date();const hours=clean.prioridad==='Crítica'?1:clean.prioridad==='Alta'?4:8;
     const t:TicketItem={id:`TCK-${nextNum}`,asunto:clean.asunto,descripcion:clean.descripcion,contextoIa:clean.contextoIa,solicitante:user.nombre,solicitanteId:user.id,prioridad:clean.prioridad as TicketPriority,categoria:clean.categoria,estado:assigned==='Sin asignar'?'Abierto':'En progreso',asignacion:assigned,departamento:user.departamento,fechaCreacion:now(),createdAt:ts.toISOString(),slaDeadline:new Date(ts.getTime()+hours*3600000).toISOString(),slaRestante:`0${hours} h 00 min`,comentariosPublicos:[],notasInternas:[],historialAuditoria:[`Ticket creado por ${user.nombre} (${now()})`,...(assigned==='Sin asignar'?[]:[`Asignado automáticamente a ${assigned} (${now()})`])]};
-    setLocalTickets([t,...all]);setSelectedId(t.id);setDraft(null);setScreen(user.rol==='empleado'?'empleado_detalle':'tecnico_detalle');notify(t,`Ticket ${t.id} creado`,`${t.asunto} · ${assigned}`,'alerta');
+    setLocalTickets([t,...all]);
+    void saveCloudTicket(t);
+    setSelectedId(t.id);setDraft(null);setScreen(user.rol==='empleado'?'empleado_detalle':'tecnico_detalle');notify(t,`Ticket ${t.id} creado`,`${t.asunto} · ${assigned}`,'alerta');
   });
   const ticketAction=(action:string,id:string,value?:string)=>perform(async()=>{
     if(!user)return;const t=tickets.find(t=>t.id===id);
@@ -163,21 +178,19 @@ export const FigmaTicketsApp:React.FC = () => {
       case 'comment':if(!value?.trim())return;updated.comentariosPublicos=[...(original.comentariosPublicos||[]),{id:crypto.randomUUID(),autor:user.nombre,rol:user.rol,texto:value.trim(),fecha:now()}];event=`Comentario público de ${user.nombre} (${now()})`;title=`Nuevo comentario en ${id}`;message=value.trim();type='comentario';break;
       default:throw new Error('Acción no válida.');
     }
-    updated.historialAuditoria=[event,...(original.historialAuditoria||[])];setLocalTickets(all.map(x=>x.id===id?updated:x));if(title)notify(updated,title,message,type);
+    updated.historialAuditoria=[event,...(original.historialAuditoria||[])];
+    const nextTickets=all.map(x=>x.id===id?updated:x);
+    setLocalTickets(nextTickets);
+    void saveCloudTicket(updated);
+    if(title)notify(updated,title,message,type);
   });
   const addTech=(tech:TechnicianProfile)=>perform(async()=>{if(user?.rol!=='admin')throw new Error('Permisos insuficientes.');if(!DEMO_MODE){await cloudAddTechnician(tech);await refreshWorkspace();return;}if(getStoredUsers().some(u=>u.email===tech.email))throw new Error('El correo ya está registrado.');saveNewUser({nombre:tech.nombre,email:tech.email,rol:'tecnico',departamento:tech.especialidad,password:'Password123!'});const next=[...getStoredTechnicians().filter(t=>t.email!==tech.email),tech];saveStoredTechnicians(next);setTechnicians(next);notify(undefined,'Técnico registrado',tech.nombre,'alerta');});
-  const switchRole = (newRole: RoleMode) => {
-    if (DEMO_MODE) {
-      const target = DEFAULT_USERS.find(u => u.rol === newRole);
-      if (target) login(target);
-    }
-  };
   const retry=()=>{if(DEMO_MODE){setError('');return;}setLoading(true);setError('');refreshWorkspace().catch(()=>{setLoading(false);setError('No se pudo conectar. Verifica Supabase y la migración QA V2.');});};
   if(checking)return <div className="min-h-screen grid place-items-center bg-slate-50 text-slate-700"><div role="status" className="flex gap-2 items-center"><Loader2 className="animate-spin w-5 h-5"/>Verificando sesión…</div></div>;
   if(!user)return <div className="min-h-screen bg-[#0B0D11]">{error&&<p role="alert" className="p-3 text-sm bg-red-50 text-red-800">{error}</p>}{actualScreen==='auth_login_default'?<LoginSplitView onLoginSuccess={login} onForgotPassword={()=>navigate('auth_recuperar')} onNavigateState={navigate}/>:<AuthModalViews currentScreen={actualScreen as AuthScreen} onNavigate={navigate} onBackToLogin={()=>navigate('auth_login_default')}/>}</div>;
 
   return <div className="rialsa-shell min-h-screen bg-[#F7F8FA] text-slate-900 flex h-dvh overflow-hidden">
-    <Sidebar key={user.id} currentRole={user.rol} currentScreen={actualScreen} currentUser={user} onNavigate={navigate} onRoleToggle={switchRole} onLogout={logout} collapsed={collapsed} onToggleCollapse={()=>setCollapsed(v=>!v)} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)}/>
+    <Sidebar key={user.id} currentRole={user.rol} currentScreen={actualScreen} currentUser={user} onNavigate={navigate} onLogout={logout} collapsed={collapsed} onToggleCollapse={()=>setCollapsed(v=>!v)} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)}/>
     <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
       <HeaderBar key={user.id} currentScreen={actualScreen} currentUser={user} notifications={visibleNotifs} onMarkAllAsRead={()=>markRead()} onSelectNotification={n=>{void markRead(n.id);if(n.ticketId)selectTicket(n.ticketId);}} onHelp={()=>navigate('tecnico_kb')} onOpenMenu={()=>setMobileOpen(true)} connected={connected} demo={DEMO_MODE}/>
       <div className="flex-1 overflow-y-auto min-w-0" id="main-content">

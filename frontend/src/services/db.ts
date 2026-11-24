@@ -512,3 +512,53 @@ export function mapRowToTicket(row: any): TicketItem {
   });
 }
 
+export function ticketToRow(t: TicketItem): Record<string, unknown> {
+  return {
+    id: t.id,
+    asunto: t.asunto,
+    descripcion: t.descripcion || null,
+    contexto_ia: t.contextoIa || null,
+    solicitante: t.solicitante,
+    solicitante_id: t.solicitanteId || null,
+    prioridad: t.prioridad,
+    categoria: t.categoria,
+    estado: t.estado,
+    asignacion: t.asignacion || 'Sin asignar',
+    departamento: t.departamento || null,
+    fecha_creacion: t.fechaCreacion || null,
+    sla_restante: t.slaRestante || null,
+    sla_deadline: t.slaDeadline || null,
+    resolved_at: t.resolvedAt || null,
+    notas_internas: t.notasInternas || [],
+    comentarios_publicos: t.comentariosPublicos || [],
+    historial_auditoria: t.historialAuditoria || []
+  };
+}
+
+export async function fetchCloudTickets(): Promise<TicketItem[] | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.from('tickets').select('*').order('id', { ascending: false });
+    if (error || !data) return null;
+    if (data.length === 0) {
+      const rows = DEFAULT_TICKETS.map(ticketToRow);
+      await supabase.from('tickets').upsert(rows);
+      return DEFAULT_TICKETS;
+    }
+    const mapped = data.map(mapRowToTicket);
+    saveStoredTickets(mapped);
+    return mapped;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveCloudTicket(ticket: TicketItem): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.from('tickets').upsert(ticketToRow(ticket));
+  } catch (err) {
+    console.warn('Error sincronizando ticket en la nube:', err);
+  }
+}
+

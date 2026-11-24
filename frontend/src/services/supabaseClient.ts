@@ -6,9 +6,9 @@ export const DEMO_MODE = import.meta.env.VITE_DEMO_MODE !== 'false';
 export function cleanSupabaseUrl(raw: string): string {
   return (raw || '').trim().replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '');
 }
-export const SUPABASE_URL = cleanSupabaseUrl(import.meta.env.VITE_SUPABASE_URL || '');
-export const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
-export const isSupabaseConfigured = !DEMO_MODE && Boolean(SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.startsWith('sb_secret_'));
+export const SUPABASE_URL = cleanSupabaseUrl(import.meta.env.VITE_SUPABASE_URL || 'https://pedgmulkxdrnpdlzwscr.supabase.co');
+export const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_JK43SN8ol0H214zdg2iguA_0q6zgsmE').trim();
+export const isSupabaseConfigured = Boolean(SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.startsWith('sb_secret_'));
 export const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}}) : null;
 // La configuración del servidor se establece por variables de entorno; no se
 // permite cambiar la base de datos desde una sesión de usuario.
