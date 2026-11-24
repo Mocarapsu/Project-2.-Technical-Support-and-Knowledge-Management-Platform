@@ -1,3 +1,4 @@
+import { slaText } from './ticketDomain';
 import { TicketItem, TechnicianProfile } from '../types/figma-tickets';
 
 export const generateReportHTML = (
@@ -15,12 +16,17 @@ export const generateReportHTML = (
   const folio = `GID-TI-REP-${now.getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
   // Métricas
+  const esc=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
   const totalTickets = tickets.length;
   const resueltos = tickets.filter((t) => t.estado === 'Resuelto').length;
   const enProgreso = tickets.filter((t) => t.estado === 'En progreso').length;
   const criticos = tickets.filter((t) => t.prioridad === 'Crítica').length;
   const tasaResolucion = totalTickets > 0 ? Math.round((resueltos / totalTickets) * 100) : 0;
 
+  const measured=tickets.filter(t=>t.estado==='Resuelto'&&t.resolvedAt&&t.slaDeadline);
+  const sla=measured.length?`${Math.round(measured.filter(t=>Date.parse(t.resolvedAt!)<=Date.parse(t.slaDeadline!)).length/measured.length*100)}%`:'Sin datos';
+  const durations=tickets.filter(t=>t.estado==='Resuelto'&&t.createdAt&&t.resolvedAt).map(t=>(Date.parse(t.resolvedAt!)-Date.parse(t.createdAt!))/3600000).filter(v=>Number.isFinite(v)&&v>=0);
+  const avg=durations.length?`${(durations.reduce((a,b)=>a+b,0)/durations.length).toFixed(1)} h`:'Sin datos';
   // Carga de técnicos
   const techRows = technicians.map((tech) => {
     const techTickets = tickets.filter(
@@ -349,7 +355,7 @@ export const generateReportHTML = (
           <strong>Folio:</strong> <span class="folio-text">${folio}</span><br />
           <strong>Fecha:</strong> ${fechaStr}<br />
           <strong>Hora de emisión:</strong> ${horaStr}<br />
-          <strong>Periodo:</strong> Q4 2026 (Tiempo Real)
+          <strong>Periodo:</strong> Fecha de emisión
         </td>
       </tr>
     </table>
@@ -371,18 +377,18 @@ export const generateReportHTML = (
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Resolución con IA (RAG)</div>
-        <div class="kpi-value">64%</div>
+        <div class="kpi-value">Sin datos</div>
         <div class="kpi-sub">Autogestión sin escalamiento</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Cumplimiento Global SLA</div>
-        <div class="kpi-value">94.2%</div>
+        <div class="kpi-value">${sla}</div>
         <div class="kpi-sub">Meta empresarial: ≥ 92.0%</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Tiempo Medio Cierre</div>
-        <div class="kpi-value">1.8 h</div>
-        <div class="kpi-sub">Ventana hábil 07:00 - 19:00</div>
+        <div class="kpi-value">${avg}</div>
+        <div class="kpi-sub">Tickets con fechas registradas</div>
       </div>
     </div>
 
@@ -406,9 +412,9 @@ export const generateReportHTML = (
         ${techRows
           .map(
             (t) => `<tr>
-              <td><strong>${t.nombre}</strong><br/><span style="color:#64748b; font-size:8px;">${t.email}</span></td>
-              <td>${t.nivel}</td>
-              <td>${t.especialidad}</td>
+              <td><strong>${esc(t.nombre)}</strong><br/><span style="color:#64748b; font-size:8px;">${esc(t.email)}</span></td>
+              <td>${esc(t.nivel)}</td>
+              <td>${esc(t.especialidad)}</td>
               <td style="text-align: center;"><strong>${t.activos}</strong> tickets</td>
               <td style="text-align: center; color: #047857;"><strong>${t.resueltos}</strong></td>
               <td>
@@ -443,9 +449,9 @@ export const generateReportHTML = (
         ${tickets
           .map(
             (t) => `<tr>
-              <td><strong style="color: #1e3a8a; font-family: monospace;">${t.id}</strong></td>
-              <td><strong>${t.asunto}</strong></td>
-              <td>${t.solicitante}</td>
+              <td><strong style="color: #1e3a8a; font-family: monospace;">${esc(t.id)}</strong></td>
+              <td><strong>${esc(t.asunto)}</strong></td>
+              <td>${esc(t.solicitante)}</td>
               <td>
                 <span class="badge ${
                   t.prioridad === 'Crítica'
@@ -454,7 +460,7 @@ export const generateReportHTML = (
                     ? 'badge-high'
                     : 'badge-medium'
                 }">
-                  ${t.prioridad}
+                  ${esc(t.prioridad)}
                 </span>
               </td>
               <td>
@@ -465,10 +471,10 @@ export const generateReportHTML = (
                     ? 'badge-progress'
                     : 'badge-open'
                 }">
-                  ${t.estado === 'Resuelto' ? '✓ Resuelto' : t.estado}
+                  ${esc(t.estado)}
                 </span>
               </td>
-              <td>${t.asignacion}</td>
+              <td>${esc(t.asignacion)}</td>
             </tr>`
           )
           .join('')}
@@ -490,43 +496,23 @@ export const generateReportHTML = (
         </tr>
       </thead>
       <tbody>
-        <tr>
-          <td style="font-family: monospace;">2026-10-15 15:10:00</td>
-          <td><strong>#TCK-1045</strong></td>
-          <td>Auto-escalado por 3 intentos IA fallidos (Regla FR-12)</td>
-          <td>Sistema RIALSA IA</td>
-          <td><span class="badge badge-critical">18 min</span></td>
-        </tr>
-        <tr>
-          <td style="font-family: monospace;">2026-10-15 14:45:12</td>
-          <td><strong>#TCK-1046</strong></td>
-          <td>Asignación automática a técnico con menor carga (Least-Loaded)</td>
-          <td>Algoritmo Central</td>
-          <td><span class="badge badge-resolved">A tiempo</span></td>
-        </tr>
-        <tr>
-          <td style="font-family: monospace;">2026-10-15 13:20:05</td>
-          <td><strong>#TCK-1047</strong></td>
-          <td>Incidencia cerrada satisfactoriamente por respuesta RAG</td>
-          <td>Empleado Planta</td>
-          <td><span class="badge badge-resolved">0.1 h</span></td>
-        </tr>
+        ${tickets.flatMap(t=>(t.historialAuditoria||[]).map(event=>`<tr><td>En evento</td><td>${esc(t.id)}</td><td>${esc(event)}</td><td>En evento</td><td>${esc(t.estado==='Resuelto'?'Cerrado':t.slaRestante||'No disponible')}</td></tr>`)).join('') || '<tr><td colspan="5">No hay eventos registrados.</td></tr>'}
       </tbody>
     </table>
 
     <!-- FIRMA Y VALIDACIÓN DIGITAL -->
     <div class="signature-section">
       <div class="cert-box">
-        <div class="cert-title">Certificación Digital de Inmutabilidad</div>
-        <div>Este informe fue generado a partir del registro transaccional oficial de RIALSA. Cualquier alteración invalida su valor probatorio ante auditorías internas o normativas ISO/IEC 27001:2022.</div>
+        <div class="cert-title">Origen del informe</div>
+        <div>Informe generado con los registros disponibles. No contiene una firma digital certificada.</div>
         <div style="font-family: monospace; font-size: 7.5px; margin-top: 4px; color: #64748b;">
-          HASH: SHA256-${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15).toUpperCase()}
+          Folio: ${folio}
         </div>
       </div>
 
       <div class="sign-box">
         <div class="sign-line"></div>
-        <p class="sign-name">Ing. José Luis Bautista</p>
+        <p class="sign-name">Dirección TI</p>
         <p class="sign-role">Chief Information Security Officer (CISO)</p>
         <p class="sign-role">Dirección General de Tecnologías de Información</p>
       </div>

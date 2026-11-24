@@ -291,7 +291,7 @@ export const TechnicianKbView: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -10 }}
       transition={{ duration: 0.3 }}
-      className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6"
+      className="bg-white rounded-lg p-6 sm:p-8 border border-slate-200  space-y-6"
     >
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
@@ -308,7 +308,7 @@ export const TechnicianKbView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-blue-200/60 flex items-center gap-1.5 shadow-xs">
+          <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-blue-200/60 flex items-center gap-1.5 ">
             <Sparkles className="w-3.5 h-3.5 text-blue-600" />
             <span>Índice RAG Sincronizado ({KB_ARTICLES.length} artículos)</span>
           </span>
@@ -326,12 +326,12 @@ export const TechnicianKbView: React.FC = () => {
                 onClick={() => setSelectedCategory(cat)}
                 className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer flex items-center gap-1.5 ${
                   selectedCategory === cat
-                    ? 'bg-slate-900 text-white shadow-xs'
+                    ? 'bg-slate-900 text-white '
                     : 'text-slate-600 hover:bg-slate-100 border border-slate-200'
                 }`}
               >
                 <span>{cat}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                <span className={`text-xs px-1.5 py-0.2 rounded-full font-bold ${
                   selectedCategory === cat ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {count}
@@ -359,14 +359,14 @@ export const TechnicianKbView: React.FC = () => {
           <div
             key={art.id}
             onClick={() => setActiveArticle(art)}
-            className="p-5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-blue-300 hover:shadow-md transition cursor-pointer space-y-3 group flex flex-col justify-between"
+            className="p-5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-blue-300 hover:shadow-md transition cursor-pointer space-y-3 group flex flex-col justify-between"
           >
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200/50">
                   {art.codigo}
                 </span>
-                <span className="text-[10px] text-slate-600 font-semibold uppercase bg-white px-2 py-0.5 rounded border border-slate-200">
+                <span className="text-xs text-slate-600 font-semibold uppercase bg-white px-2 py-0.5 rounded border border-slate-200">
                   {art.categoria}
                 </span>
               </div>
@@ -380,18 +380,18 @@ export const TechnicianKbView: React.FC = () => {
               </p>
             </div>
 
-            <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-400">
+            <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-400">
               <div className="flex flex-wrap items-center gap-1">
                 {art.tags.slice(0, 3).map((tag) => (
                   <span
                     key={tag}
-                    className="bg-white text-slate-600 text-[10px] font-medium px-1.5 py-0.2 rounded border border-slate-200"
+                    className="bg-white text-slate-600 text-xs font-medium px-1.5 py-0.2 rounded border border-slate-200"
                   >
                     #{tag}
                   </span>
                 ))}
               </div>
-              <span className="flex items-center gap-1 text-[10px] text-slate-500">
+              <span className="flex items-center gap-1 text-xs text-slate-500">
                 <Eye className="w-3 h-3" />
                 <span>{art.vistas}</span>
               </span>
@@ -401,7 +401,7 @@ export const TechnicianKbView: React.FC = () => {
       </div>
 
       {filtered.length === 0 && (
-        <div className="p-12 text-center text-slate-500 text-xs italic bg-slate-50 rounded-xl border border-slate-200">
+        <div className="p-12 text-center text-slate-500 text-xs italic bg-slate-50 rounded-lg border border-slate-200">
           No se encontraron manuales técnicos que coincidan con "{searchTerm}" en la categoría "{selectedCategory}".
         </div>
       )}
@@ -416,7 +416,7 @@ export const TechnicianKbView: React.FC = () => {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in duration-200 cursor-default max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-lg max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in duration-200 cursor-default max-h-[90vh] overflow-y-auto"
           >
             <div className="flex justify-between items-start border-b border-slate-100 pb-4">
               <div>
@@ -426,7 +426,7 @@ export const TechnicianKbView: React.FC = () => {
                 <h2 className="text-lg font-bold text-slate-900 mt-2.5 leading-snug">
                   {activeArticle.titulo}
                 </h2>
-                <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
+                <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
                   <span>Actualizado: {activeArticle.actualizado}</span>
                   <span>·</span>
                   <span>{activeArticle.vistas} consultas registradas</span>
@@ -441,7 +441,7 @@ export const TechnicianKbView: React.FC = () => {
             </div>
 
             <div className="space-y-4 text-xs text-slate-700 leading-relaxed">
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
                 <strong className="block text-slate-900 mb-1 font-bold text-xs uppercase tracking-wider">
                   Resumen Operativo del Manual:
                 </strong>
@@ -453,7 +453,7 @@ export const TechnicianKbView: React.FC = () => {
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
                   <span>Procedimiento Técnico Autorizado Paso a Paso:</span>
                 </h4>
-                <ol className="list-decimal list-inside space-y-2.5 pl-1 text-slate-700 bg-white p-4 rounded-xl border border-slate-200">
+                <ol className="list-decimal list-inside space-y-2.5 pl-1 text-slate-700 bg-white p-4 rounded-lg border border-slate-200">
                   {(activeArticle.pasos || [
                     'Verificar los registros de eventos de Windows y comprobar la conectividad en el puerto TCP correspondiente.',
                     'Comprobar si el usuario cuenta con el certificado de equipo vigente emitido por la CA interna de GID.',
@@ -466,7 +466,7 @@ export const TechnicianKbView: React.FC = () => {
                 </ol>
               </div>
 
-              <div className="p-3.5 bg-amber-50 text-amber-900 rounded-xl border border-amber-200/80 text-[11px] space-y-1">
+              <div className="p-3.5 bg-amber-50 text-amber-900 rounded-lg border border-amber-200/80 text-xs space-y-1">
                 <strong>Nota de seguridad NFR-08:</strong> Este documento contiene especificaciones técnicas internas de Grupo Industrial Delnorte (GID). Queda prohibida su reproducción o divulgación fuera de la red corporativa.
               </div>
             </div>
@@ -474,7 +474,7 @@ export const TechnicianKbView: React.FC = () => {
             <div className="flex justify-between items-center pt-3 border-t border-slate-100">
               <div className="flex flex-wrap gap-1">
                 {activeArticle.tags.map((t) => (
-                  <span key={t} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-mono">
+                  <span key={t} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-mono">
                     #{t}
                   </span>
                 ))}

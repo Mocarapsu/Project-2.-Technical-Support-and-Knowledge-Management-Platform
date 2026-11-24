@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { UploadCloud, Sparkles, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
 
 interface Props {
+  busy?: boolean;
+  internal?: boolean;
   onCancel?: () => void;
   onSubmitSuccess?: () => void;
-  onSubmitTicket?: (ticket: { asunto: string; descripcion: string; categoria: string; prioridad: string }) => void;
+  onSubmitTicket?: (ticket: { asunto: string; descripcion: string; categoria: string; prioridad: string; contextoIa?: string }) => void | Promise<boolean>; 
   onTryAiFirst?: (draft?: { asunto: string; descripcion: string; categoria: string; prioridad: string }) => void;
-  initialDraft?: { asunto: string; descripcion: string; categoria: string; prioridad?: string } | null;
+  initialDraft?: { asunto: string; descripcion: string; categoria: string; prioridad?: string; contextoIa?: string } | null;
 }
 
 export const EmployeeNewTicketView: React.FC<Props> = ({
@@ -15,10 +17,10 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
   onSubmitSuccess,
   onSubmitTicket,
   onTryAiFirst,
-  initialDraft
+  initialDraft, busy = false, internal = false
 }) => {
   const shouldReduceMotion = useReducedMotion();
-  const [currentStep, setCurrentStep] = useState(1);
+  const formRef = useRef<HTMLDivElement>(null);
   const [asunto, setAsunto] = useState(initialDraft?.asunto || '');
   const [descripcion, setDescripcion] = useState(initialDraft?.descripcion || '');
   const [categoria, setCategoria] = useState(initialDraft?.categoria || '');
@@ -49,30 +51,24 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
     }
 
     setErrors(newErrors);
+    if (Object.keys(newErrors).length) requestAnimationFrame(() => document.getElementById(`ticket-${Object.keys(newErrors)[0]}`)?.focus());
     return Object.keys(newErrors).length === 0;
   };
 
   const handleCreate = () => {
-    if (!validate()) return;
+    if (busy || !validate()) return;
 
     if (onSubmitTicket) {
       onSubmitTicket({
         asunto: asunto.trim(),
         descripcion: descripcion.trim(),
         categoria,
-        prioridad
+        prioridad, contextoIa: initialDraft?.contextoIa
       });
     } else {
       onSubmitSuccess?.();
     }
   };
-
-  const steps = [
-    { num: '01', label: 'Contacto' },
-    { num: '02', label: 'Detalle' },
-    { num: '03', label: 'Adjuntos' },
-    { num: '04', label: 'Envío' },
-  ];
 
   return (
     <motion.div
@@ -80,48 +76,30 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -10 }}
       transition={{ duration: 0.3 }}
-      className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm"
+      className="bg-white rounded-lg p-8 border border-slate-200 "
     >
       {/* Title & Subtitle */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Crear ticket</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{internal ? "Crear ticket interno" : "Crear ticket"}</h1>
         <p className="text-xs text-slate-500 mt-1">
-          Registra tu incidente o con el asistente interactivo para que soporte pueda actuar con rapidez.
+          Completa los datos de la incidencia para que soporte pueda atenderla.
         </p>
-      </div>
-
-      {/* Step Pills */}
-      <div className="flex items-center gap-2 mb-8 border-b border-slate-100 pb-5">
-        {steps.map((s, idx) => {
-          const isActive = currentStep === idx + 1;
-          return (
-            <button
-              key={s.num}
-              onClick={() => setCurrentStep(idx + 1)}
-              className={`text-xs px-3.5 py-1.5 rounded-md font-medium transition-colors ${isActive
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                }`}
-            >
-              {s.num}. {s.label}
-            </button>
-          );
-        })}
       </div>
 
       {/* 2-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Form Column */}
-        <div className="lg:col-span-8 space-y-5">
+        <div ref={formRef} className="lg:col-span-8 space-y-5">
+          {initialDraft?.contextoIa && <details className="rounded-lg border border-slate-200 p-3 text-sm"><summary className="cursor-pointer font-medium">Contexto de IA que se adjuntará al ticket</summary><pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-600 font-sans">{initialDraft.contextoIa}</pre></details>}
           {/* Asunto */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
               <span>Asunto <span className="text-red-500">*</span></span>
-              {errors.asunto && <span className="text-[11px] text-red-600 font-medium flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.asunto}</span>}
+              {errors.asunto && <span id="ticket-asunto-error" role="alert" className="text-xs text-red-600 font-medium flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.asunto}</span>}
             </label>
             <input
               type="text"
-              value={asunto}
+              id="ticket-asunto" aria-label="Asunto" aria-invalid={Boolean(errors.asunto)} aria-describedby={errors.asunto ? "ticket-asunto-error" : undefined} value={asunto}
               onChange={(e) => {
                 setAsunto(e.target.value);
                 if (errors.asunto) setErrors((prev) => ({ ...prev, asunto: undefined }));
@@ -137,11 +115,11 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
               <span>Descripción detallada <span className="text-red-500">*</span></span>
-              {errors.descripcion && <span className="text-[11px] text-red-600 font-medium flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.descripcion}</span>}
+              {errors.descripcion && <span id="ticket-descripcion-error" role="alert" className="text-xs text-red-600 font-medium flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.descripcion}</span>}
             </label>
             <textarea
               rows={4}
-              value={descripcion}
+              id="ticket-descripcion" aria-label="Descripcion" aria-invalid={Boolean(errors.descripcion)} aria-describedby={errors.descripcion ? "ticket-descripcion-error" : undefined} value={descripcion}
               onChange={(e) => {
                 setDescripcion(e.target.value);
                 if (errors.descripcion) setErrors((prev) => ({ ...prev, descripcion: undefined }));
@@ -158,10 +136,10 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
                 <span>Categoría <span className="text-red-500">*</span></span>
-                {errors.categoria && <span className="text-[10px] text-red-600 font-medium">{errors.categoria}</span>}
+                {errors.categoria && <span id="ticket-categoria-error" role="alert" className="text-xs text-red-600 font-medium">{errors.categoria}</span>}
               </label>
               <select
-                value={categoria}
+                id="ticket-categoria" aria-label="Categoria" aria-invalid={Boolean(errors.categoria)} aria-describedby={errors.categoria ? "ticket-categoria-error" : undefined} value={categoria}
                 onChange={(e) => {
                   setCategoria(e.target.value);
                   if (errors.categoria) setErrors((prev) => ({ ...prev, categoria: undefined }));
@@ -171,19 +149,19 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
                 }`}
               >
                 <option value="">Selecciona una categoría</option>
-                <option value="Acceso">Acceso y Credenciales</option>
-                <option value="Software">Software y Aplicaciones</option>
-                <option value="Hardware">Hardware y Equipos</option>
-                <option value="Red">Red y Conectividad</option>
+                <option value="Acceso">Acceso</option>
+                <option value="Software">Software</option>
+                <option value="Hardware">Hardware</option>
+                <option value="Redes">Redes</option>
               </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
                 <span>Prioridad <span className="text-red-500">*</span></span>
-                {errors.prioridad && <span className="text-[10px] text-red-600 font-medium">{errors.prioridad}</span>}
+                {errors.prioridad && <span id="ticket-prioridad-error" role="alert" className="text-xs text-red-600 font-medium">{errors.prioridad}</span>}
               </label>
               <select
-                value={prioridad}
+                id="ticket-prioridad" aria-label="Prioridad" aria-invalid={Boolean(errors.prioridad)} aria-describedby={errors.prioridad ? "ticket-prioridad-error" : undefined} value={prioridad}
                 onChange={(e) => {
                   setPrioridad(e.target.value);
                   if (errors.prioridad) setErrors((prev) => ({ ...prev, prioridad: undefined }));
@@ -204,12 +182,12 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
           {/* Adjuntos Dropzone */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Adjuntos</label>
-            <div className="border-2 border-dashed border-slate-200 hover:border-slate-300 rounded-xl p-6 text-center bg-slate-50/50 hover:bg-slate-50 transition cursor-pointer flex flex-col items-center justify-center">
+            <div className="border border-slate-200 rounded-lg p-4 bg-slate-50 flex flex-col items-start">
               <UploadCloud className="w-6 h-6 text-slate-400 mb-2" />
               <p className="text-xs text-slate-600 font-medium">
-                Arrastra archivos o <span className="text-blue-600 underline">selecciona desde tu equipo</span>
+                La carga de adjuntos aún no está disponible en este entorno.
               </p>
-              <p className="text-[11px] text-slate-400 mt-1">PNG, JPG, PDF hasta 10MB</p>
+              <p className="text-xs text-slate-400 mt-1">Puedes incluir la información relevante en la descripción.</p>
             </div>
           </div>
 
@@ -225,21 +203,22 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
             <motion.button
               type="button"
               onClick={handleCreate}
+              disabled={busy}
               whileHover={shouldReduceMotion ? undefined : { scale: 1.02 }}
               whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
-              className="text-xs font-semibold bg-slate-900 hover:bg-black text-white px-5 py-2 rounded-lg shadow-sm transition"
+              className="text-xs font-semibold bg-slate-900 hover:bg-black text-white px-5 py-2 rounded-lg  transition"
             >
-              Crear ticket
+              {busy ? "Creando…" : "Crear ticket"}
             </motion.button>
           </div>
         </div>
 
         {/* Right Info Box */}
         <div className="lg:col-span-4">
-          <div className="bg-slate-50/90 border border-slate-200/80 rounded-xl p-5 space-y-4">
+          <div className="bg-slate-50/90 border border-slate-200/80 rounded-lg p-5 space-y-4">
             <div>
               <h3 className="text-xs font-bold text-slate-900">Antes de enviar</h3>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                 Un buen ticket evita preguntas adicionales y acelera la solución con soporte.
               </p>
             </div>
@@ -263,7 +242,7 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-200/60">
+            {onTryAiFirst && <div className="pt-3 border-t border-slate-200/60">
               <button
                 type="button"
                 onClick={() =>
@@ -283,7 +262,7 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
                 </span>
                 <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
               </button>
-            </div>
+            </div>}
           </div>
         </div>
       </div>

@@ -11,6 +11,7 @@ import {
   KeyRound,
   RotateCcw
 } from 'lucide-react';
+import { DEMO_MODE, supabase } from '../../services/supabaseClient';
 import { AuthScreen } from '../../types/figma-tickets';
 
 interface Props {
@@ -38,7 +39,7 @@ export const AuthModalViews: React.FC<Props> = ({
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const handleSendRecovery = (e: React.FormEvent) => {
+  const handleSendRecovery = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
       setEmailError('Ingresa tu correo electrónico institucional.');
@@ -49,6 +50,10 @@ export const AuthModalViews: React.FC<Props> = ({
       return;
     }
     setEmailError(null);
+    if(DEMO_MODE){setEmailError('El modo local no envía correos. Utiliza el acceso rápido para entrar.');return;}
+    if(!supabase){setEmailError('El servicio de recuperación no está configurado.');return;}
+    const {error}=await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(),{redirectTo:window.location.origin});
+    if(error){setEmailError('No fue posible solicitar la recuperación. Intenta de nuevo.');return;}
     onNavigate('auth_recuperacion_enviada');
   };
 
@@ -59,7 +64,7 @@ export const AuthModalViews: React.FC<Props> = ({
       <div className="flex justify-between items-center text-xs border-b border-slate-800/80 pb-4 mb-6">
         <div className="flex items-center gap-2.5">
           <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-          <span className="font-mono text-slate-400 text-[11px] font-semibold tracking-wider">
+          <span className="font-mono text-slate-400 text-xs font-semibold tracking-wider">
             PORTAL INSTITUCIONAL RIALSA · RECUPERACIÓN DE CUENTA
           </span>
         </div>
@@ -78,8 +83,8 @@ export const AuthModalViews: React.FC<Props> = ({
         
         {/* RIALSA Centered Logo */}
         <div className="text-center mb-6">
-          <h1 className="text-xl font-black text-white tracking-widest">RIALSA</h1>
-          <p className="text-[11px] text-slate-500">Gestión de Acceso y Credenciales</p>
+          <h1 className="text-xl font-semibold text-white tracking-widest">RIALSA</h1>
+          <p className="text-xs text-slate-500">Gestión de Acceso y Credenciales</p>
         </div>
 
         {/* ========================================================= */}
@@ -90,7 +95,7 @@ export const AuthModalViews: React.FC<Props> = ({
             variants={modalVariants}
             initial="hidden"
             animate="visible"
-            className="w-full max-w-md bg-white text-slate-800 rounded-2xl p-8 sm:p-9 shadow-2xl border border-slate-200"
+            className="w-full max-w-md bg-white text-slate-800 rounded-lg p-8 sm:p-9 shadow-2xl border border-slate-200"
           >
             <div className="mb-6">
               <h3 className="text-xl font-bold text-slate-900 tracking-tight">
@@ -102,10 +107,7 @@ export const AuthModalViews: React.FC<Props> = ({
             </div>
 
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                onNavigate('auth_recuperacion_enviada');
-              }}
+              onSubmit={handleSendRecovery}
               className="space-y-4"
             >
               <div>
@@ -125,10 +127,11 @@ export const AuthModalViews: React.FC<Props> = ({
                 </div>
               </div>
 
+              {emailError&&<p role="alert" className="text-sm text-red-700">{emailError}</p>}
               <div className="pt-2 space-y-3">
                 <button
                   type="submit"
-                  className="w-full bg-slate-900 hover:bg-black text-white font-semibold py-2.5 px-4 rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm"
+                  className="w-full bg-slate-900 hover:bg-black text-white font-semibold py-2.5 px-4 rounded-lg text-xs transition flex items-center justify-center gap-1.5 "
                 >
                   <span>Enviar enlace</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -155,7 +158,7 @@ export const AuthModalViews: React.FC<Props> = ({
             variants={modalVariants}
             initial="hidden"
             animate="visible"
-            className="w-full max-w-md bg-white text-slate-800 rounded-2xl p-8 sm:p-9 shadow-2xl border border-slate-200 text-center"
+            className="w-full max-w-md bg-white text-slate-800 rounded-lg p-8 sm:p-9 shadow-2xl border border-slate-200 text-center"
           >
             <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 ring-8 ring-blue-50/50">
               <Mail className="w-6 h-6" />
@@ -170,13 +173,7 @@ export const AuthModalViews: React.FC<Props> = ({
             </p>
 
             <div className="mt-6 pt-5 border-t border-slate-100 space-y-3">
-              <button
-                type="button"
-                onClick={() => onNavigate('auth_nueva_password')}
-                className="w-full bg-slate-900 hover:bg-black text-white font-semibold py-2.5 px-4 rounded-lg text-xs transition"
-              >
-                Abrir enlace recibido (Simular clic)
-              </button>
+
 
               <button
                 type="button"
@@ -198,7 +195,7 @@ export const AuthModalViews: React.FC<Props> = ({
             variants={modalVariants}
             initial="hidden"
             animate="visible"
-            className="w-full max-w-md bg-white text-slate-800 rounded-2xl p-8 sm:p-9 shadow-2xl border border-slate-200"
+            className="w-full max-w-md bg-white text-slate-800 rounded-lg p-8 sm:p-9 shadow-2xl border border-slate-200"
           >
             <div className="mb-6">
               <h3 className="text-xl font-bold text-slate-900 tracking-tight">
@@ -210,10 +207,7 @@ export const AuthModalViews: React.FC<Props> = ({
             </div>
 
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                onNavigate('auth_password_actualizada');
-              }}
+              onSubmit={async(e)=>{e.preventDefault();setPasswordError(null);if(newPassword.length<8||!/[0-9]/.test(newPassword)||!/[!@#$%^&*]/.test(newPassword)||newPassword!==confirmPassword){setPasswordError('Verifica la longitud, números, símbolo y confirmación.');return;}if(DEMO_MODE||!supabase){setPasswordError('Se requiere un enlace de recuperación válido.');return;}const {error}=await supabase.auth.updateUser({password:newPassword});if(error){setPasswordError('No se pudo actualizar la contraseña. Solicita un nuevo enlace.');return;}await supabase.auth.signOut({scope:'local'});onNavigate('auth_password_actualizada');}}
               className="space-y-4"
             >
               <div>
@@ -250,10 +244,11 @@ export const AuthModalViews: React.FC<Props> = ({
                 </div>
               </div>
 
+              {passwordError&&<p role="alert" className="text-sm text-red-700">{passwordError}</p>}
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full bg-slate-900 hover:bg-black text-white font-semibold py-2.5 px-4 rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm"
+                  className="w-full bg-slate-900 hover:bg-black text-white font-semibold py-2.5 px-4 rounded-lg text-xs transition flex items-center justify-center gap-1.5 "
                 >
                   <KeyRound className="w-3.5 h-3.5" />
                   <span>Guardar contraseña</span>
@@ -271,7 +266,7 @@ export const AuthModalViews: React.FC<Props> = ({
             variants={modalVariants}
             initial="hidden"
             animate="visible"
-            className="w-full max-w-md bg-white text-slate-800 rounded-2xl p-8 sm:p-9 shadow-2xl border border-slate-200 text-center"
+            className="w-full max-w-md bg-white text-slate-800 rounded-lg p-8 sm:p-9 shadow-2xl border border-slate-200 text-center"
           >
             <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 ring-8 ring-emerald-50/50">
               <CheckCircle2 className="w-6 h-6" />
@@ -304,7 +299,7 @@ export const AuthModalViews: React.FC<Props> = ({
             variants={modalVariants}
             initial="hidden"
             animate="visible"
-            className="w-full max-w-md bg-white text-slate-800 rounded-2xl p-8 sm:p-9 shadow-2xl border border-slate-200 text-center"
+            className="w-full max-w-md bg-white text-slate-800 rounded-lg p-8 sm:p-9 shadow-2xl border border-slate-200 text-center"
           >
             <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 ring-8 ring-amber-50/50">
               <Clock className="w-6 h-6" />
@@ -338,7 +333,7 @@ export const AuthModalViews: React.FC<Props> = ({
             variants={modalVariants}
             initial="hidden"
             animate="visible"
-            className="w-full max-w-md bg-white text-slate-800 rounded-2xl p-8 sm:p-9 shadow-2xl border border-slate-200 text-center"
+            className="w-full max-w-md bg-white text-slate-800 rounded-lg p-8 sm:p-9 shadow-2xl border border-slate-200 text-center"
           >
             <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 ring-8 ring-red-50/50">
               <ShieldAlert className="w-6 h-6" />
@@ -366,7 +361,7 @@ export const AuthModalViews: React.FC<Props> = ({
 
       </div>
 
-      <footer className="text-center text-[11px] text-slate-500 pt-6">
+      <footer className="text-center text-xs text-slate-500 pt-6">
         © 2026 Grupo Industrial Delnorte S.A. de C.V. — Todos los derechos reservados.
       </footer>
     </div>

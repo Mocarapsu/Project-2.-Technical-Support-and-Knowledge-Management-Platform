@@ -28,7 +28,7 @@ export type AdminScreen =
 
 export type ActiveScreen = AuthScreen | EmployeeScreen | TechnicianScreen | AdminScreen;
 
-export type TicketPriority = 'Crítica' | 'Alta' | 'Media' | 'Baja';
+export type TicketPriority = 'Crítica' | 'Alta' | 'Media' | 'Baja' | 'No especificada';
 
 export type TicketStatus = 'Abierto' | 'En progreso' | 'Escalado' | 'Resuelto';
 
@@ -76,6 +76,12 @@ export interface AppNotification {
 export interface TicketItem {
   id: string;
   asunto: string;
+  descripcion?: string;
+  contextoIa?: string;
+  solicitanteId?: string;
+  createdAt?: string;
+  slaDeadline?: string;
+  resolvedAt?: string;
   solicitante: string;
   prioridad: TicketPriority;
   categoria: string;

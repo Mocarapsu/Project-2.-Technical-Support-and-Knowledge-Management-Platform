@@ -21,7 +21,8 @@ import {
   Activity,
   Layers
 } from 'lucide-react';
-import { TicketItem, TechnicianProfile } from '../types/figma-tickets';
+import { TicketItem, TechnicianProfile, UserAccount } from '../types/figma-tickets';
+import { CATEGORIES, normalizeCategory, slaText } from '../services/ticketDomain';
 import { ExecutiveReportModal } from './ExecutiveReportModal';
 
 export interface AuditEvent {
@@ -36,50 +37,19 @@ export interface AuditEvent {
 }
 
 export interface AdminDashboardProps {
+  currentUser?: UserAccount | null;
   tickets?: TicketItem[];
   technicians?: TechnicianProfile[];
-  onAssignTicket?: (ticketId: string, techName: string) => void;
-  onAddTechnician?: (tech: TechnicianProfile) => void;
+  onAssignTicket?: (ticketId: string, techName: string) => void | Promise<boolean>;
+  onAddTechnician?: (tech: TechnicianProfile) => void | Promise<boolean>;
   onForceAssignment?: (ticketId: string) => void;
   onExportCSV?: () => void;
   onExportPDF?: () => void;
   onLogout?: () => void;
 }
 
-const DEFAULT_AUDIT_LOGS: AuditEvent[] = [
-  {
-    id: 'evt-1',
-    timestamp: '2026-10-15T15:10:00Z',
-    ticketId: '#1045',
-    action: 'Auto-escalado por 3 intentos IA fallidos (FR-12)',
-    executor: 'Sistema / AI-Service',
-    role: 'AI_SYSTEM',
-    slaStatus: '18 min restante',
-    slaLevel: 'critical'
-  },
-  {
-    id: 'evt-2',
-    timestamp: '2026-10-15T14:45:12Z',
-    ticketId: '#1042',
-    action: 'Asignación automática a técnico con menor carga',
-    executor: 'Ricardo Hernández',
-    role: 'TECHNICIAN',
-    slaStatus: 'A tiempo (92%)',
-    slaLevel: 'ontime'
-  },
-  {
-    id: 'evt-3',
-    timestamp: '2026-10-15T13:20:05Z',
-    ticketId: '#1038',
-    action: 'Ticket cerrado satisfactoriamente por respuesta IA',
-    executor: 'Carlos Méndez',
-    role: 'END_USER',
-    slaStatus: 'Resuelto (0.1 hrs)',
-    slaLevel: 'resolved'
-  }
-];
-
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  currentUser,
   tickets = [],
   technicians = [],
   onAssignTicket,
@@ -125,29 +95,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const abiertosCount = tickets.filter((t) => t.estado === 'Abierto').length;
   const criticosCount = tickets.filter((t) => t.prioridad === 'Crítica' && t.estado !== 'Resuelto').length;
 
-  const catAcceso = tickets.filter((t) => t.categoria === 'Acceso').length;
-  const catSoftware = tickets.filter((t) => t.categoria === 'Software').length;
-  const catHardware = tickets.filter((t) => t.categoria === 'Hardware').length;
-  const catRedes = tickets.filter((t) => t.categoria === 'Redes').length;
+  const categoryCounts = Array.from(new Set([...CATEGORIES, ...tickets.map(t=>normalizeCategory(t.categoria))])).map(category=>({category,count:tickets.filter(t=>normalizeCategory(t.categoria)===category).length}));
+  const pct = (val:number) => totalTickets ? Math.round(val/totalTickets*100) : 0;
+  const measured = tickets.filter(t=>t.estado==='Resuelto'&&t.resolvedAt&&t.slaDeadline);
+  const slaCompliance = measured.length ? `${Math.round(measured.filter(t=>slaText(t)==='Cumplido').length/measured.length*100)}%` : 'Sin datos';
+  const durations = tickets.filter(t=>t.estado==='Resuelto'&&t.createdAt&&t.resolvedAt).map(t=>(Date.parse(t.resolvedAt!)-Date.parse(t.createdAt!))/3600000).filter(n=>Number.isFinite(n)&&n>=0);
+  const average = durations.length ? `${(durations.reduce((a,b)=>a+b,0)/durations.length).toFixed(1)} h` : 'Sin datos';
+  const auditLogs = tickets.flatMap(t=>(t.historialAuditoria||[]).map((action,i)=>({id:`${t.id}-${i}`,ticketId:t.id,action,slaStatus:slaText(t)})));
+  const escaladosCount = tickets.filter(t=>t.estado==='Escalado').length;
 
-  const pct = (val: number) => (totalTickets > 0 ? Math.round((val / totalTickets) * 100) : 0);
-  const slaCompliance = totalTickets > 0 ? Math.max(88, Math.min(100, Math.round(((totalTickets - criticosCount) / totalTickets) * 1000) / 10)) : 100;
-
-  const handleConfirmAssignment = () => {
+  const handleConfirmAssignment = async () => {
     if (!selectedTicketForAssign || !targetTech) return;
-    onAssignTicket?.(selectedTicketForAssign.id, targetTech);
+    if (await onAssignTicket?.(selectedTicketForAssign.id, targetTech) === false) return;
     setAssignmentSuccessMsg(`Ticket ${selectedTicketForAssign.id} asignado exitosamente a ${targetTech}.`);
     setSelectedTicketForAssign(null);
     setTargetTech('');
     setTimeout(() => setAssignmentSuccessMsg(null), 4000);
   };
 
-  const handleCreateTechnician = (e: React.FormEvent) => {
+  const handleCreateTechnician = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTechNombre || !newTechEmail) return;
 
     const newProfile: TechnicianProfile = {
-      id: `TECH-0${technicians.length + 1}`,
+      id: `TECH-${crypto.randomUUID()}`,
       nombre: newTechNombre,
       email: newTechEmail,
       especialidad: newTechEspecialidad || 'Soporte General',
@@ -156,7 +127,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       estado: 'Disponible'
     };
 
-    onAddTechnician?.(newProfile);
+    if (await onAddTechnician?.(newProfile) === false) return;
     setShowAddTechModal(false);
     setNewTechNombre('');
     setNewTechEmail('');
@@ -171,17 +142,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* ========================================================= */}
       {/* 1. TOP HEADER & TAB NAVIGATION                             */}
       {/* ========================================================= */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+      <div className="bg-white rounded-lg p-6 border border-slate-200  space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="bg-purple-100 text-purple-800 border border-purple-200 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+              <span className="bg-purple-100 text-purple-800 border border-purple-200 text-xs font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                 Consola Central CISO / Dirección TI
               </span>
               <span className="text-xs text-slate-400">·</span>
-              <span className="text-xs text-slate-500 font-medium">Ing. Bautista</span>
+              <span className="text-xs text-slate-500 font-medium">{currentUser?.nombre || "Dirección TI"}</span>
             </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-1">
+            <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mt-1">
               Dashboard de Dirección & Gestión Operativa
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -199,7 +170,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
             <button
               onClick={() => setShowExecutiveReportModal(true)}
-              className="bg-slate-900 hover:bg-black text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5"
+              className="bg-slate-900 hover:bg-black text-white text-xs font-semibold px-3.5 py-2 rounded-lg  transition flex items-center gap-1.5"
             >
               <FileText className="w-3.5 h-3.5 text-blue-400" />
               <span>Reporte Ejecutivo PDF</span>
@@ -211,9 +182,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="flex items-center gap-2 border-t border-slate-100 pt-4">
           <button
             onClick={() => setActiveTab('metrics')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
               activeTab === 'metrics'
-                ? 'bg-slate-900 text-white shadow-xs'
+                ? 'bg-slate-900 text-white '
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
@@ -223,9 +194,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <button
             onClick={() => setActiveTab('assignments')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
               activeTab === 'assignments'
-                ? 'bg-slate-900 text-white shadow-xs'
+                ? 'bg-slate-900 text-white '
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
@@ -235,9 +206,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <button
             onClick={() => setActiveTab('team')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
               activeTab === 'team'
-                ? 'bg-slate-900 text-white shadow-xs'
+                ? 'bg-slate-900 text-white '
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
@@ -252,7 +223,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs px-4 py-3 rounded-xl font-semibold flex items-center justify-between shadow-sm"
+          className="bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs px-4 py-3 rounded-lg font-semibold flex items-center justify-between "
         >
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -271,8 +242,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="space-y-6">
           {totalTickets === 0 ? (
             /* Explicit Empty State (BUG-014) */
-            <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs space-y-4">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div className="bg-white border border-slate-200 rounded-lg p-12 text-center  space-y-4">
+              <div className="w-16 h-16 mx-auto rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                 <BarChart3 className="w-8 h-8" />
               </div>
               <div className="max-w-md mx-auto space-y-1">
@@ -281,7 +252,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   No se han registrado incidencias activas en el sistema o la base de datos no contiene tickets en el rango evaluado.
                 </p>
               </div>
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 max-w-lg mx-auto text-xs text-slate-600 text-left space-y-1.5 font-mono">
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200/80 max-w-lg mx-auto text-xs text-slate-600 text-left space-y-1.5 font-mono">
                 <div><strong className="text-slate-800">Fuente de datos:</strong> PostgreSQL Cloud (Supabase) / Cache Local GID</div>
                 <div><strong className="text-slate-800">Periodo evaluado:</strong> Tiempo Real (Últimos 30 días)</div>
                 <div><strong className="text-slate-800">Próximos pasos:</strong> Los usuarios pueden crear tickets desde el portal de autoservicio o el Asistente IA para generar métricas de rendimiento y SLAs.</div>
@@ -291,7 +262,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <>
               {/* Dynamic Critical SLA Alert or Optimal Status Banner */}
               {pendingCriticalTicket ? (
-                <div className="bg-red-50 border-l-4 border-red-600 p-4 rounded-r-xl shadow-xs flex flex-wrap justify-between items-center gap-4">
+                <div className="bg-red-50 border-l-4 border-red-600 p-4 rounded-r-xl  flex flex-wrap justify-between items-center gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-red-100 text-red-700 flex items-center justify-center flex-shrink-0">
                       <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -299,13 +270,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div>
                       <div className="text-xs font-bold text-red-900 uppercase tracking-wider flex items-center gap-1.5">
                         <span>Alerta de Atención Prioritaria (SLA en Curso)</span>
-                        <span className="text-[10px] bg-red-200/70 text-red-800 px-2 py-0.5 rounded-full font-bold">
+                        <span className="text-xs bg-red-200/70 text-red-800 px-2 py-0.5 rounded-full font-bold">
                           Regla BR-02
                         </span>
                       </div>
                       <div className="text-xs text-red-800 mt-0.5">
                         El Ticket <strong className="font-mono text-red-950 font-bold">{pendingCriticalTicket.id}</strong> ({pendingCriticalTicket.asunto}) tiene prioridad <strong className="text-red-950 font-bold">{pendingCriticalTicket.prioridad}</strong> y le restan{' '}
-                        <span className="font-extrabold text-red-900 underline">{pendingCriticalTicket.slaRestante || '01 h 12 min'}</span>. Asignado a: <strong>{pendingCriticalTicket.asignacion}</strong>.
+                        <span className="font-semibold text-red-900 underline">{slaText(pendingCriticalTicket) || '01 h 12 min'}</span>. Asignado a: <strong>{pendingCriticalTicket.asignacion}</strong>.
                       </div>
                     </div>
                   </div>
@@ -315,34 +286,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       setSelectedTicketForAssign(pendingCriticalTicket);
                       setTargetTech(pendingCriticalTicket.asignacion !== 'Sin asignar' ? pendingCriticalTicket.asignacion : technicians[0]?.nombre || '');
                     }}
-                    className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                    className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-lg  transition flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>Reasignar a Especialista</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : (
-                <div className="bg-emerald-50 border-l-4 border-emerald-600 p-4 rounded-r-xl shadow-xs flex flex-wrap justify-between items-center gap-4">
+                <div className="bg-emerald-50 border-l-4 border-emerald-600 p-4 rounded-r-xl  flex flex-wrap justify-between items-center gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
                       <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div>
                       <div className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
-                        <span>Cumplimiento de SLA al 100% (Estado Óptimo)</span>
-                        <span className="text-[10px] bg-emerald-200/70 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
-                          Regla BR-02 Cumplida
+                        <span>Sin incidencias críticas o altas pendientes</span>
+                        <span className="text-xs bg-emerald-200/70 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                          Estado operativo
                         </span>
                       </div>
                       <div className="text-xs text-emerald-800 mt-0.5">
-                        Cero incidencias críticas o de alta prioridad pendientes. Todos los incidentes reportados han sido resueltos satisfactoriamente o se encuentran dentro de su margen operativo seguro.
+                        Cero incidencias críticas o de alta prioridad pendientes. Consulta las métricas de SLA para verificar el cumplimiento.
                       </div>
                     </div>
                   </div>
 
                   <button
                     onClick={() => setActiveTab('assignments')}
-                    className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-lg  transition flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>Ver Portafolio de Tickets ({tickets.length})</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -352,42 +323,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               {/* 4 KPI Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-1">
-                  <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider">Tiempo Prom. Resolución</span>
-                  <div className="text-3xl font-black text-slate-900 tracking-tight">1.8 Horas</div>
-                  <div className="text-[11px] text-blue-700 font-semibold pt-1 border-t border-slate-100 flex items-center gap-1">
+                <div className="bg-white border border-slate-200 rounded-lg p-5  space-y-1">
+                  <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Tiempo Prom. Resolución</span>
+                  <div className="text-3xl font-semibold text-slate-900 tracking-tight">{average}</div>
+                  <div className="text-xs text-blue-700 font-semibold pt-1 border-t border-slate-100 flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Horario hábil 07:00 - 19:00</span>
+                    <span>Tickets con fechas registradas</span>
                   </div>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-1">
-                  <div className="flex justify-between items-center text-slate-500 text-[11px] font-bold uppercase tracking-wider">
+                <div className="bg-white border border-slate-200 rounded-lg p-5  space-y-1">
+                  <div className="flex justify-between items-center text-slate-500 text-xs font-bold uppercase tracking-wider">
                     <span>Resolución IA vs Humano</span>
                     <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
                   </div>
-                  <div className="text-3xl font-black text-emerald-600 tracking-tight">
-                    64% <span className="text-slate-300 font-normal">/</span> <span className="text-blue-600">36%</span>
+                  <div className="text-3xl font-semibold text-emerald-600 tracking-tight">
+                    Sin datos
                   </div>
-                  <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 flex justify-between">
-                    <span className="text-emerald-700 font-semibold">64% Resuelto por IA</span>
-                    <span className="text-blue-700 font-semibold">36% Técnico</span>
+                  <div className="text-xs text-slate-500 pt-1 border-t border-slate-100 flex justify-between">
+                    <span className="text-emerald-700 font-semibold">IA: no medido</span>
+                    <span className="text-blue-700 font-semibold">Sin clasificación</span>
                   </div>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-1">
-                  <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider">Cumplimiento de SLA</span>
-                  <div className="text-3xl font-black text-slate-900 tracking-tight">{slaCompliance}%</div>
-                  <div className="text-[11px] text-emerald-600 font-semibold pt-1 border-t border-slate-100 flex items-center gap-1">
+                <div className="bg-white border border-slate-200 rounded-lg p-5  space-y-1">
+                  <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Cumplimiento de SLA</span>
+                  <div className="text-3xl font-semibold text-slate-900 tracking-tight">{slaCompliance}</div>
+                  <div className="text-xs text-emerald-600 font-semibold pt-1 border-t border-slate-100 flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>{criticosCount === 0 ? 'Sin desvíos críticos' : `${criticosCount} en riesgo crítico`}</span>
                   </div>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-1">
-                  <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider">Balanceo Least-Loaded</span>
-                  <div className="text-3xl font-black text-slate-900 tracking-tight">{technicians.length} Técnicos</div>
-                  <div className="text-[11px] text-emerald-700 font-semibold pt-1 border-t border-slate-100 flex items-center gap-1">
+                <div className="bg-white border border-slate-200 rounded-lg p-5  space-y-1">
+                  <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Balanceo Least-Loaded</span>
+                  <div className="text-3xl font-semibold text-slate-900 tracking-tight">{technicians.length} Técnicos</div>
+                  <div className="text-xs text-emerald-700 font-semibold pt-1 border-t border-slate-100 flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Algoritmo activo de menor carga</span>
                   </div>
@@ -397,98 +368,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* Dynamic Categorization & Status Analytics (BUG-014) */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 {/* Incidencias por Categoría */}
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
+                <div className="bg-white border border-slate-200 rounded-lg p-5  space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900 flex items-center gap-2">
                       <BarChart3 className="w-4 h-4 text-blue-600" />
                       <span>Distribución por Categoría ({totalTickets} Total)</span>
                     </h3>
-                    <span className="text-[11px] text-slate-500 font-medium">Volumen relativo</span>
+                    <span className="text-xs text-slate-500 font-medium">Volumen relativo</span>
                   </div>
 
                   <div className="space-y-3 pt-1">
-                    {/* Acceso */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs font-semibold text-slate-700">
-                        <span>Acceso & Cuentas</span>
-                        <span className="text-slate-900 font-bold">{catAcceso} ({pct(catAcceso)}%)</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                        <div className="bg-blue-600 h-full rounded-full transition-all" style={{ width: `${pct(catAcceso)}%` }} />
-                      </div>
-                    </div>
-
-                    {/* Software */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs font-semibold text-slate-700">
-                        <span>Software & ERP</span>
-                        <span className="text-slate-900 font-bold">{catSoftware} ({pct(catSoftware)}%)</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                        <div className="bg-purple-600 h-full rounded-full transition-all" style={{ width: `${pct(catSoftware)}%` }} />
-                      </div>
-                    </div>
-
-                    {/* Hardware */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs font-semibold text-slate-700">
-                        <span>Hardware & Periféricos</span>
-                        <span className="text-slate-900 font-bold">{catHardware} ({pct(catHardware)}%)</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                        <div className="bg-amber-500 h-full rounded-full transition-all" style={{ width: `${pct(catHardware)}%` }} />
-                      </div>
-                    </div>
-
-                    {/* Redes */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs font-semibold text-slate-700">
-                        <span>Redes & Telecomunicaciones</span>
-                        <span className="text-slate-900 font-bold">{catRedes} ({pct(catRedes)}%)</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                        <div className="bg-emerald-600 h-full rounded-full transition-all" style={{ width: `${pct(catRedes)}%` }} />
-                      </div>
-                    </div>
+                    {categoryCounts.map(({category,count})=><div key={category} className="space-y-1"><div className="flex justify-between text-sm text-slate-700"><span>{category}</span><span className="font-semibold">{count} ({pct(count)}%)</span></div><div className="w-full h-2 bg-slate-100 rounded overflow-hidden"><div className="h-full bg-blue-600" style={{width:`${pct(count)}%`}}/></div></div>)}
                   </div>
                 </div>
 
                 {/* Estado del Pipeline */}
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
+                <div className="bg-white border border-slate-200 rounded-lg p-5  space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900 flex items-center gap-2">
                       <Activity className="w-4 h-4 text-emerald-600" />
                       <span>Estado del Pipeline Operativo</span>
                     </h3>
-                    <span className="text-[11px] text-slate-500 font-medium">Ciclo de vida</span>
+                    <span className="text-xs text-slate-500 font-medium">Ciclo de vida</span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3 pt-1">
-                    <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl p-3 text-center space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Resueltos</span>
-                      <div className="text-2xl font-black text-emerald-800">{resueltosCount}</div>
-                      <div className="text-[10px] text-emerald-600 font-semibold">{pct(resueltosCount)}% del total</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                    <div className="bg-emerald-50 border border-emerald-200/80 rounded-lg p-3 text-center space-y-1">
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">Resueltos</span>
+                      <div className="text-2xl font-semibold text-emerald-800">{resueltosCount}</div>
+                      <div className="text-xs text-emerald-600 font-semibold">{pct(resueltosCount)}% del total</div>
                     </div>
 
-                    <div className="bg-blue-50 border border-blue-200/80 rounded-xl p-3 text-center space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">En Progreso</span>
-                      <div className="text-2xl font-black text-blue-800">{enProgresoCount}</div>
-                      <div className="text-[10px] text-blue-600 font-semibold">{pct(enProgresoCount)}% del total</div>
+                    <div className="bg-blue-50 border border-blue-200/80 rounded-lg p-3 text-center space-y-1">
+                      <span className="text-xs font-bold uppercase tracking-wider text-blue-700">En Progreso</span>
+                      <div className="text-2xl font-semibold text-blue-800">{enProgresoCount}</div>
+                      <div className="text-xs text-blue-600 font-semibold">{pct(enProgresoCount)}% del total</div>
                     </div>
 
-                    <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-center space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Abiertos</span>
-                      <div className="text-2xl font-black text-amber-800">{abiertosCount}</div>
-                      <div className="text-[10px] text-amber-600 font-semibold">{pct(abiertosCount)}% del total</div>
+                    <div className="bg-amber-50 border border-amber-200/80 rounded-lg p-3 text-center space-y-1">
+                      <span className="text-xs font-bold uppercase tracking-wider text-amber-700">Abiertos</span>
+                      <div className="text-2xl font-semibold text-amber-800">{abiertosCount}</div>
+                      <div className="text-xs text-amber-600 font-semibold">{pct(abiertosCount)}% del total</div>
                     </div>
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center space-y-1"><span className="text-xs text-slate-600">Escalados</span><div className="text-2xl font-semibold">{escaladosCount}</div><div className="text-xs">{pct(escaladosCount)}% del total</div></div>
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                     <span className="text-slate-500">Tickets críticos sin resolver:</span>
-                    <span className={`font-bold px-2 py-0.5 rounded text-[11px] ${
+                    <span className={`font-bold px-2 py-0.5 rounded text-xs ${
                       criticosCount > 0 ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'
                     }`}>
-                      {criticosCount === 0 ? '0 (Cumplimiento Óptimo)' : `${criticosCount} en atención`}
+                      {criticosCount === 0 ? '0' : `${criticosCount} en atención`}
                     </span>
                   </div>
                 </div>
@@ -497,50 +427,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           )}
 
           {/* Audit Log Table */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-4">
+          <div className="bg-white border border-slate-200 rounded-lg p-6  space-y-4">
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <Shield className="w-4 h-4 text-blue-600" />
-                  <span>Bitácora de Auditoría Inmutable (RBAC & Trazabilidad)</span>
+                  <span>Bitácora de auditoría</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Registro inalterable con marcas de tiempo para auditorías normativas ISO 27001 / GID.
+                  Eventos registrados en los tickets disponibles.
                 </p>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-500 font-mono bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
-                <RefreshCw className="w-3 h-3 text-slate-400 animate-spin" />
-                <span>Sincronizado</span>
+                <RefreshCw className="w-3 h-3 text-slate-400" />
+                <span>{auditLogs.length} eventos</span>
               </div>
             </div>
 
             <div className="overflow-x-auto rounded-lg border border-slate-200">
               <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-50 border-b border-slate-200 uppercase text-[10px] text-slate-500 font-bold tracking-wider">
+                <thead className="bg-slate-50 border-b border-slate-200 uppercase text-xs text-slate-500 font-bold tracking-wider">
                   <tr>
-                    <th className="py-3 px-4">Timestamp</th>
+                    
                     <th className="py-3 px-4">Ticket</th>
                     <th className="py-3 px-4">Acción Registrada</th>
-                    <th className="py-3 px-4">Ejecutor</th>
+                    
                     <th className="py-3 px-4">SLA</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {DEFAULT_AUDIT_LOGS.map((evt) => (
-                    <tr key={evt.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3 px-4 font-mono text-slate-500 text-[11px]">{evt.timestamp}</td>
-                      <td className="py-3 px-4 font-bold text-blue-700">{evt.ticketId}</td>
-                      <td className="py-3 px-4 font-semibold text-slate-900">{evt.action}</td>
-                      <td className="py-3 px-4 text-slate-600">{evt.executor}</td>
-                      <td className="py-3 px-4">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                          evt.slaLevel === 'critical' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        }`}>
-                          {evt.slaStatus}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {auditLogs.length===0&&<tr><td colSpan={3} className="p-6 text-center text-slate-500">No hay eventos registrados.</td></tr>}
+                  {auditLogs.map(evt=><tr key={evt.id} className="hover:bg-slate-50"><td className="px-4 py-3 font-medium text-blue-700">{evt.ticketId}</td><td className="px-4 py-3">{evt.action}</td><td className="px-4 py-3">{evt.slaStatus}</td></tr>)}
                 </tbody>
               </table>
             </div>
@@ -552,10 +469,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* TAB 2: TICKET ASSIGNMENTS & REBALANCING (USER REQUEST)    */}
       {/* ========================================================= */}
       {activeTab === 'assignments' && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+        <div className="bg-white rounded-lg p-6 border border-slate-200  space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
-              <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900 tracking-tight flex items-center gap-2">
                 <Ticket className="w-5 h-5 text-blue-600" />
                 <span>Asignación y Rebalanceo de Tickets a Técnicos (FR-04)</span>
               </h2>
@@ -568,9 +485,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </span>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 uppercase text-[10px] text-slate-500 font-bold tracking-wider">
+              <thead className="bg-slate-50 border-b border-slate-200 uppercase text-xs text-slate-500 font-bold tracking-wider">
                 <tr>
                   <th className="py-3.5 px-4">Ticket</th>
                   <th className="py-3.5 px-4">Asunto</th>
@@ -586,10 +503,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <td className="py-3.5 px-4 font-bold text-blue-700">{t.id}</td>
                     <td className="py-3.5 px-4 font-semibold text-slate-900 max-w-xs truncate">
                       {t.asunto}
-                      <span className="block text-[11px] text-slate-400 font-normal">Solicitó: {t.solicitante}</span>
+                      <span className="block text-xs text-slate-400 font-normal">Solicitó: {t.solicitante}</span>
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                         t.prioridad === 'Crítica'
                           ? 'bg-red-50 text-red-700 border border-red-200'
                           : t.prioridad === 'Alta'
@@ -601,26 +518,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </td>
                     <td className="py-3.5 px-4">
                       {t.estado === 'Resuelto' && (
-                        <span className="bg-emerald-700 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shadow-xs">
+                        <span className="bg-emerald-700 text-white font-bold text-xs px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ">
                           <CheckCircle2 className="w-3 h-3" />
                           <span>Resuelto</span>
                         </span>
                       )}
                       {t.estado === 'En progreso' && (
-                        <span className="bg-blue-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shadow-xs">
+                        <span className="bg-blue-600 text-white font-bold text-xs px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ">
                           <Clock className="w-3 h-3" />
                           <span>En progreso</span>
                         </span>
                       )}
                       {t.estado === 'Abierto' && (
-                        <span className="bg-amber-500 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shadow-xs">
+                        <span className="bg-amber-500 text-white font-bold text-xs px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ">
                           <span>Abierto</span>
                         </span>
                       )}
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-slate-800">
                       {t.asignacion === 'Sin asignar' ? (
-                        <span className="text-red-600 bg-red-50 border border-red-200 text-[11px] px-2 py-0.5 rounded">
+                        <span className="text-red-600 bg-red-50 border border-red-200 text-xs px-2 py-0.5 rounded">
                           Sin asignar
                         </span>
                       ) : (
@@ -637,7 +554,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           setSelectedTicketForAssign(t);
                           setTargetTech(t.asignacion !== 'Sin asignar' ? t.asignacion : technicians[0]?.nombre || '');
                         }}
-                        className="bg-slate-900 hover:bg-black text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-xs transition"
+                        className="bg-slate-900 hover:bg-black text-white text-xs font-semibold px-3 py-1.5 rounded-lg  transition"
                       >
                         Reasignar Técnico →
                       </button>
@@ -654,10 +571,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* TAB 3: TEAM & CAPACITY MANAGEMENT (USER REQUEST)         */}
       {/* ========================================================= */}
       {activeTab === 'team' && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
+        <div className="bg-white rounded-lg p-6 border border-slate-200  space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
-              <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900 tracking-tight flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-600" />
                 <span>Equipo de Soporte TI & Algoritmo Least-Loaded</span>
               </h2>
@@ -667,7 +584,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
             <button
               onClick={() => setShowAddTechModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg  transition flex items-center gap-1.5"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>+ Dar de Alta Nuevo Técnico</span>
@@ -681,19 +598,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div
                   key={tech.id}
                   onClick={() => setSelectedTechForStats(tech)}
-                  className={`rounded-xl p-5 border transition-all cursor-pointer group hover:scale-[1.01] hover:border-blue-500 hover:shadow-md ${
+                  className={`rounded-lg p-5 border transition-all cursor-pointer group hover:scale-[1.01] hover:border-blue-500 hover:shadow-md ${
                     isLeastLoaded
-                      ? 'border-emerald-300 bg-emerald-50/30 shadow-xs'
+                      ? 'border-emerald-300 bg-emerald-50/30 '
                       : 'border-slate-200 bg-slate-50/40 hover:bg-white'
                   }`}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-extrabold text-slate-900 text-sm group-hover:text-blue-600 transition-colors">{tech.nombre}</h4>
-                      <p className="text-[11px] text-slate-500">{tech.email}</p>
+                      <h4 className="font-semibold text-slate-900 text-sm group-hover:text-blue-600 transition-colors">{tech.nombre}</h4>
+                      <p className="text-xs text-slate-500">{tech.email}</p>
                     </div>
                     {isLeastLoaded && (
-                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                      <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full border border-emerald-200">
                         Menor Carga (Siguiente)
                       </span>
                     )}
@@ -710,13 +627,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                     <div className="flex justify-between items-center pt-1">
                       <span className="text-slate-500">Tickets Activos:</span>
-                      <span className="font-mono font-black text-sm text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      <span className="font-mono font-semibold text-sm text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
                         {tech.ticketsActivos} {tech.ticketsActivos === 1 ? 'ticket' : 'tickets'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="mt-3 pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] font-bold text-blue-600 group-hover:text-blue-800">
+                  <div className="mt-3 pt-2 border-t border-slate-200/50 flex items-center justify-between text-xs font-bold text-blue-600 group-hover:text-blue-800">
                     <span>Ver estadísticas & tickets</span>
                     <span>→</span>
                   </div>
@@ -735,7 +652,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4"
+            className="bg-white rounded-lg max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4"
           >
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
@@ -747,7 +664,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </button>
             </div>
 
-            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1">
+            <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-xs space-y-1">
               <div><strong className="text-slate-700">Ticket:</strong> <span className="font-mono text-blue-700 font-bold">{selectedTicketForAssign.id}</span></div>
               <div><strong className="text-slate-700">Asunto:</strong> <span className="text-slate-900">{selectedTicketForAssign.asunto}</span></div>
               <div><strong className="text-slate-700">Asignación previa:</strong> <span className="text-slate-600">{selectedTicketForAssign.asignacion}</span></div>
@@ -781,7 +698,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmAssignment}
-                className="bg-slate-900 hover:bg-black text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5"
+                className="bg-slate-900 hover:bg-black text-white text-xs font-bold px-4 py-2 rounded-lg  transition flex items-center gap-1.5"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Confirmar Reasignación</span>
@@ -799,7 +716,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4"
+            className="bg-white rounded-lg max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4"
           >
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
@@ -870,7 +787,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg "
                 >
                   Guardar y Habilitar
                 </button>
@@ -897,20 +814,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-5 max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-lg max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-5 max-h-[90vh] overflow-y-auto"
             >
               {/* Header */}
               <div className="flex justify-between items-start border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md">
+                  <div className="w-12 h-12 rounded-lg bg-slate-800 text-white font-semibold text-lg flex items-center justify-center shadow-md">
                     {selectedTechForStats.nombre.split(' ').map((n) => n[0]).slice(0, 2).join('')}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                      <h3 className="text-lg font-semibold text-slate-900 tracking-tight">
                         {selectedTechForStats.nombre}
                       </h3>
-                      <span className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                      <span className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold px-2.5 py-0.5 rounded-full">
                         {selectedTechForStats.nivel}
                       </span>
                     </div>
@@ -930,39 +847,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               {/* 4 Performance KPI Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">Carga Activa</div>
-                  <div className="text-2xl font-black text-slate-900 mt-0.5">{activeCount}</div>
-                  <div className="text-[10px] text-slate-400 font-medium">de 5 máx. concurrente</div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Carga Activa</div>
+                  <div className="text-2xl font-semibold text-slate-900 mt-0.5">{activeCount}</div>
+                  <div className="text-xs text-slate-400 font-medium">de 5 máx. concurrente</div>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">Resueltos</div>
-                  <div className="text-2xl font-black text-emerald-600 mt-0.5">{resolvedCount}</div>
-                  <div className="text-[10px] text-emerald-700 font-medium">Histórico verificado</div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Resueltos</div>
+                  <div className="text-2xl font-semibold text-emerald-600 mt-0.5">{resolvedCount}</div>
+                  <div className="text-xs text-emerald-700 font-medium">Tickets registrados</div>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">Cumplimiento SLA</div>
-                  <div className="text-2xl font-black text-blue-600 mt-0.5">98.6%</div>
-                  <div className="text-[10px] text-blue-700 font-medium">Meta: {'>'}92%</div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Cumplimiento SLA</div>
+                  <div className="text-2xl font-semibold text-blue-600 mt-0.5">Sin datos</div>
+                  <div className="text-xs text-blue-700 font-medium">Meta: {'>'}92%</div>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">Satisfacción CSAT</div>
-                  <div className="text-2xl font-black text-amber-500 mt-0.5 flex items-center justify-center gap-1">
-                    <span>4.9</span>
-                    <span className="text-sm">★</span>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Satisfacción CSAT</div>
+                  <div className="text-2xl font-semibold text-amber-500 mt-0.5 flex items-center justify-center gap-1">
+                    <span>Sin datos</span>
+                    
                   </div>
-                  <div className="text-[10px] text-slate-500 font-medium">5.0 escala máx.</div>
+                  <div className="text-xs text-slate-500 font-medium">5.0 escala máx.</div>
                 </div>
               </div>
 
               {/* Workload Progress Bar */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between items-center text-xs">
                   <span className="font-bold text-slate-700">Índice de saturación operativa (Least-Loaded)</span>
-                  <span className="font-extrabold text-slate-900">{capacityPct}% de capacidad</span>
+                  <span className="font-semibold text-slate-900">{capacityPct}% de capacidad</span>
                 </div>
                 <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
                   <div
@@ -976,7 +893,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     style={{ width: `${Math.max(capacityPct, 8)}%` }}
                   />
                 </div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs text-slate-500">
                   {activeCount === 0
                     ? 'Técnico 100% disponible. El algoritmo asignará el próximo ticket entrante a este resolutor.'
                     : activeCount <= 2
@@ -991,11 +908,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                     Tickets en cartera asignada ({techTickets.length})
                   </h4>
-                  <span className="text-[10px] text-slate-400 font-medium">Gestión directa</span>
+                  <span className="text-xs text-slate-400 font-medium">Gestión directa</span>
                 </div>
 
                 {techTickets.length > 0 ? (
-                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden text-xs max-h-52 overflow-y-auto">
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden text-xs max-h-52 overflow-y-auto">
                     {techTickets.map((t) => (
                       <div key={t.id} className="p-3 bg-white hover:bg-slate-50 flex items-center justify-between gap-3 transition">
                         <div className="space-y-0.5">
@@ -1003,13 +920,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <span className="font-bold text-blue-700 font-mono">{t.id}</span>
                             <span className="font-semibold text-slate-800 truncate max-w-xs">{t.asunto}</span>
                           </div>
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-xs text-slate-400">
                             Solicitó: {t.solicitante} · Cat: {t.categoria}
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                             t.prioridad === 'Crítica'
                               ? 'bg-red-50 text-red-700 border border-red-200'
                               : t.prioridad === 'Alta'
@@ -1020,12 +937,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </span>
 
                           {t.estado === 'Resuelto' ? (
-                            <span className="bg-emerald-700 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shadow-xs">
+                            <span className="bg-emerald-700 text-white font-bold text-xs px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ">
                               <CheckCircle2 className="w-3 h-3" />
                               <span>Resuelto</span>
                             </span>
                           ) : (
-                            <span className="bg-blue-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shadow-xs">
+                            <span className="bg-blue-600 text-white font-bold text-xs px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ">
                               <Clock className="w-3 h-3" />
                               <span>En progreso</span>
                             </span>
@@ -1035,7 +952,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     ))}
                   </div>
                 ) : (
-                  <div className="text-xs text-slate-400 bg-slate-50 p-4 rounded-xl border border-slate-200/80 text-center italic">
+                  <div className="text-xs text-slate-400 bg-slate-50 p-4 rounded-lg border border-slate-200/80 text-center italic">
                     Este técnico no tiene ningún ticket asignado actualmente.
                   </div>
                 )}
@@ -1058,7 +975,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedTechForStats(null)}
-                    className="bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-lg font-semibold shadow-xs transition"
+                    className="bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-lg font-semibold  transition"
                   >
                     Cerrar
                   </button>

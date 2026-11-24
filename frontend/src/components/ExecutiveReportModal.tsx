@@ -41,7 +41,7 @@ export const ExecutiveReportModal: React.FC<Props> = ({
         initial={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.95 }}
-        className="bg-[#0B0D11] border border-slate-700 rounded-2xl max-w-4xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+        className="bg-[#0B0D11] border border-slate-700 rounded-lg max-w-4xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden"
       >
         {/* Top Control Bar (Dark SaaS Frame) */}
         <div className="px-5 py-3.5 bg-[#0e1117] border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
@@ -52,11 +52,11 @@ export const ExecutiveReportModal: React.FC<Props> = ({
             <div>
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 <span>Informe Ejecutivo Oficial de Operaciones TI</span>
-                <span className="text-[10px] font-mono bg-blue-950 text-blue-300 border border-blue-800 px-2 py-0.5 rounded">
+                <span className="text-xs font-mono bg-blue-950 text-blue-300 border border-blue-800 px-2 py-0.5 rounded">
                   Formato Carta / A4 Oficial
                 </span>
               </h2>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Dictamen corporativo auditado. Cero capturas de pantalla de la interfaz web.
               </p>
             </div>
@@ -66,7 +66,7 @@ export const ExecutiveReportModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={handlePrint}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+              className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3.5 py-2 rounded-lg  transition flex items-center gap-1.5 cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Guardar como PDF / Imprimir</span>
@@ -97,13 +97,13 @@ export const ExecutiveReportModal: React.FC<Props> = ({
           <iframe
             ref={iframeRef}
             srcDoc={reportHTML}
-            className="w-full h-full bg-white rounded-xl shadow-2xl border border-slate-300"
+            className="w-full h-full bg-white rounded-lg shadow-2xl border border-slate-300"
             title="Vista Previa Informe Ejecutivo"
           />
         </div>
 
         {/* Footer info bar */}
-        <div className="px-5 py-2 bg-[#0e1117] border-t border-slate-800 text-center text-[11px] text-slate-400">
+        <div className="px-5 py-2 bg-[#0e1117] border-t border-slate-800 text-center text-xs text-slate-400">
           Tip: Haz clic en <strong>Guardar como PDF / Imprimir</strong> para guardar el archivo PDF oficial con hoja membretada, firmas y sello SHA-256.
         </div>
       </motion.div>

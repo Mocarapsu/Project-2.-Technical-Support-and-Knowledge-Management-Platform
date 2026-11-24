@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     departamento TEXT NOT NULL,
     estado TEXT NOT NULL DEFAULT 'Activo',
     fecha_registro TEXT NOT NULL,
-    password TEXT NOT NULL DEFAULT 'Password123!',
+    password TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -60,38 +60,26 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 5. Habilitar Row Level Security (RLS) y permitir acceso anónimo controlado
+-- 5. Seguridad: sin acceso directo de clientes anónimos o autenticados.
+-- Ejecutar supabase_qa_v2.sql a continuación para habilitar operaciones autorizadas.
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE technicians ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-
 DROP POLICY IF EXISTS "Public full access users" ON users;
-CREATE POLICY "Public full access users" ON users FOR ALL USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public full access technicians" ON technicians;
-CREATE POLICY "Public full access technicians" ON technicians FOR ALL USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public full access tickets" ON tickets;
-CREATE POLICY "Public full access tickets" ON tickets FOR ALL USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public full access notifications" ON notifications;
-CREATE POLICY "Public full access notifications" ON notifications FOR ALL USING (true) WITH CHECK (true);
-
--- 6. Habilitar Tiempo Real (Supabase Realtime WebSockets)
-BEGIN;
-  DROP PUBLICATION IF EXISTS supabase_realtime;
-  CREATE PUBLICATION supabase_realtime FOR TABLE users, technicians, tickets, notifications;
-COMMIT;
+REVOKE ALL ON users, technicians, tickets, notifications FROM PUBLIC, anon, authenticated;
 
 -- 7. Datos Iniciales de Prueba (Semilla Oficial)
 INSERT INTO users (id, nombre, email, rol, departamento, estado, fecha_registro, password)
 VALUES
-('USR-01', 'Carlos Operador Planta', 'empleado@gid.com.mx', 'empleado', 'Operaciones y Planta 1', 'Activo', '15 oct 2026', 'Password123!'),
-('USR-02', 'Ricardo Daniel Hernández', 'ricardo@gid.com.mx', 'empleado', 'Desarrollo Frontend / TI2', 'Activo', '15 oct 2026', 'Password123!'),
-('USR-03', 'Alfredo González Soto', 'alfredo@gid.com.mx', 'tecnico', 'Mesa de Ayuda L2 / Backend', 'Activo', '15 oct 2026', 'Password123!'),
-('USR-04', 'Salvador Rivera Delgado', 'salvador@gid.com.mx', 'tecnico', 'Microservicios IA & Automatización', 'Activo', '15 oct 2026', 'Password123!'),
-('USR-05', 'Ing. José Luis Bautista', 'bautista@gid.com.mx', 'admin', 'CISO / Dirección TI Central', 'Activo', '15 oct 2026', 'Password123!')
+('USR-01', 'Carlos Operador Planta', 'empleado@gid.com.mx', 'empleado', 'Operaciones y Planta 1', 'Activo', '15 oct 2026', ''),
+('USR-02', 'Ricardo Daniel Hernández', 'ricardo@gid.com.mx', 'empleado', 'Desarrollo Frontend / TI2', 'Activo', '15 oct 2026', ''),
+('USR-03', 'Alfredo González Soto', 'alfredo@gid.com.mx', 'tecnico', 'Mesa de Ayuda L2 / Backend', 'Activo', '15 oct 2026', ''),
+('USR-04', 'Salvador Rivera Delgado', 'salvador@gid.com.mx', 'tecnico', 'Microservicios IA & Automatización', 'Activo', '15 oct 2026', ''),
+('USR-05', 'Ing. José Luis Bautista', 'bautista@gid.com.mx', 'admin', 'CISO / Dirección TI Central', 'Activo', '15 oct 2026', '')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO technicians (id, nombre, email, especialidad, nivel, tickets_activos, estado)

@@ -25,7 +25,9 @@ export interface TicketDraftContext {
   descripcion: string;
   categoria: string;
   prioridad?: string;
+  contextoIa?: string;
 }
+export interface ConversationTurn { sender: "user" | "ai"; text: string; steps?: string[]; citation?: string; }
 
 /**
  * Normaliza texto eliminando acentos, puntuación extra y convirtiendo a minúsculas
@@ -435,53 +437,22 @@ export const FULL_KB_CATALOG: KbArticleDefinition[] = [
 export async function askAiAssistant(
   prompt: string,
   userEmail?: string,
-  ticketContext?: TicketDraftContext
+  ticketContext?: TicketDraftContext,
+  history: ConversationTurn[] = []
 ): Promise<AiDiagnosticResult> {
   const cleanPrompt = prompt.trim();
-
-  // 1. Probar Google Gemini API si hay API Key configurada
-  const geminiKey =
-    (typeof window !== 'undefined' ? localStorage.getItem('rialsa_gemini_api_key') : '') ||
-    (import.meta as any).env?.VITE_GEMINI_API_KEY ||
-    '';
-
-  if (geminiKey && geminiKey.trim().length > 10) {
+  const prior = history.slice(-12).map(t=>({sender:t.sender,text:t.text.slice(0,6000),steps:t.steps,citation:t.citation}));
+  // The same guarded local retrieval is used when the optional AI service is offline.
+  // API credentials live on the AI server, never in this browser bundle.
+  const result = runAutonomousColloquialEngine(cleanPrompt, ticketContext, prior);
+  const endpoint = import.meta.env.VITE_AI_SERVICE_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
+  if(endpoint && result.cita.startsWith('Artículo ') && !prior.some(t=>t.sender==='user')) {
     try {
-      const geminiResult = await callGeminiApi(cleanPrompt, geminiKey.trim(), ticketContext);
-      if (geminiResult) return geminiResult;
-    } catch (e) {
-      console.warn('[AI Service] Falló llamada a Gemini API, usando motor autónomo fallback:', e);
-    }
+      const res = await fetch(`${endpoint.replace(/\/$/,'')}/api/v1/ai/chat`, {method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(6000),body:JSON.stringify({query:cleanPrompt,user_id:userEmail,context:ticketContext,history:prior})});
+      if(res.ok) {const data=await res.json();const code=data.cita?.match(/KB-\d+/)?.[0];if(code && FULL_KB_CATALOG.some(a=>a.codigo===code) && data.cita===result.cita && Array.isArray(data.pasos)) return {...result,respuesta:data.respuesta,pasos:data.pasos,modelo:data.modelo || 'Servicio RIALSA',requiereEscalado:Boolean(data.requiere_escalado)};}
+    } catch { /* local catalog fallback */ }
   }
-
-  // 2. Probar backend FastAPI Python si está corriendo en localhost
-  try {
-    const res = await fetch('http://localhost:8000/api/v1/ai/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: cleanPrompt,
-        user_id: userEmail || 'empleado@gid.com.mx',
-        context: ticketContext || undefined
-      })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        respuesta: data.respuesta,
-        pasos: data.pasos,
-        cita: data.cita,
-        similitud: String(data.similitud),
-        modelo: data.modelo || 'FastAPI RAG Backend',
-        requiereEscalado: Boolean(data.requiere_escalado)
-      };
-    }
-  } catch {
-    // Si localhost:8000 no está disponible (ej. en Vercel), ejecutamos el motor neuronal del cliente
-  }
-
-  // 3. MOTOR AUTÓNOMO COLOQUIAL RIALSA (En navegador - 100% disponible en Vercel)
-  return runAutonomousColloquialEngine(cleanPrompt, ticketContext);
+  return result;
 }
 
 /**
@@ -491,82 +462,30 @@ export async function askAiAssistant(
  */
 function runAutonomousColloquialEngine(
   prompt: string,
-  ticketContext?: TicketDraftContext
+  ticketContext?: TicketDraftContext,
+  history: ConversationTurn[] = []
 ): AiDiagnosticResult {
   const normPrompt = normalizeText(prompt);
 
-  // Caso: Chistes / Humor
-  if (
-    normPrompt.includes('chiste') ||
-    normPrompt.includes('broma') ||
-    normPrompt.includes('gracioso') ||
-    normPrompt.includes('reir') ||
-    normPrompt.includes('risa') ||
-    normPrompt.includes('cuenta un chiste')
-  ) {
-    const joke = IT_JOKES[Math.floor(Math.random() * IT_JOKES.length)];
-    return {
-      respuesta: joke.respuesta,
-      pasos: joke.pasos,
-      cita: joke.cita,
-      similitud: '0.99',
-      modelo: 'Motor Conversacional RIALSA IA (NLP)',
-      requiereEscalado: false,
-      esChiste: true
-    };
+  const response = (respuesta:string,pasos:string[]=[],cita='',requiereEscalado=false):AiDiagnosticResult => ({respuesta,pasos,cita,similitud:'',modelo:'Catálogo técnico RIALSA',requiereEscalado});
+  if (!normPrompt) return response('Describe el problema para poder ayudarte.');
+  // Las peticiones de datos de terceros o de alterar reglas no acceden a sistemas ni secretos.
+  if (/(ignora|omite|olvida).*(reglas|instrucciones)|system prompt|prompt del sistema|revela.*(instrucciones|secretos)|usa internet|busca en internet|eres administrador|datos de otros|tickets de (?:otro|ricardo|carlos|alfredo|salvador)|notas internas|service role|api key|clave de la red|contrasena de la red|cual es la (?:clave|contrasena)|dame.*(?:contrasenas|claves|tokens)/.test(normPrompt)) return response('No tengo acceso autorizado a contraseñas, datos privados, tickets de otros usuarios ni instrucciones internas. Puedo ayudarte con procedimientos documentados o escalar la incidencia a soporte.');
+  if (/^(hola|buenos dias|buen dia|buenas tardes|buenas noches|ayuda|oye|saludos)$/.test(normPrompt)) return response('Hola. Indica el equipo o sistema afectado y qué mensaje de error aparece.');
+  if (/^(gracias|muchas gracias|ya funciono|ya quedo|ya jalo|listo)$/.test(normPrompt)) return response('De acuerdo. Si el incidente ya quedó resuelto, puedes marcarlo como solucionado.');
+  if (/\b(clima|receta|deportes|chiste|broma|futbol|politica|manual inexistente|kb ficticio)\b/.test(normPrompt)) return response('Mi alcance se limita a soporte técnico y a los manuales autorizados de RIALSA. No tengo una fuente aplicable para esa consulta.');
+  const lastAnswer = [...history].reverse().find(t=>t.sender==='ai' && t.citation?.startsWith('Artículo '));
+  const lastCode = lastAnswer?.citation?.match(/KB-\d+/)?.[0];
+  const previousArticle = FULL_KB_CATALOG.find(a=>a.codigo===lastCode);
+  const followup = /\b(ya|sigue|todavia|tampoco|no funciono|intente|probe|reinicie|hice|no sirvio|otra alternativa|mismo error|despues)\b/.test(normPrompt);
+  if (followup && previousArticle) {
+    const done=normalizeText(history.filter(t=>t.sender==='user').map(t=>t.text).join(' ')+' '+prompt);
+    const used=new Set(history.filter(t=>t.sender==='ai').flatMap(t=>t.steps||[]));
+    const remaining=previousArticle.pasosSencillos.filter(step=>!used.has(step)&&!(/reinici|reinicia|reiniciar/.test(normalizeText(step))&&/reinici/.test(done)));
+    const source=`Artículo ${previousArticle.codigo}: ${previousArticle.titulo}`;
+    return remaining.length ? response('Entiendo que los pasos anteriores no resolvieron la incidencia. Continuemos con las comprobaciones pendientes del mismo manual.',remaining,source) : response('Entiendo que ya intentaste las comprobaciones anteriores y el problema persiste. No repetiré esos pasos. Necesito el mensaje de error exacto, el equipo afectado y si el problema ocurre también en otros dispositivos. Si continúa, escala el caso a soporte con este historial.',[],source,true);
   }
-
-  // Caso: Saludos
-  if (
-    normPrompt.startsWith('hola') ||
-    normPrompt.startsWith('buen dia') ||
-    normPrompt.startsWith('buenos dias') ||
-    normPrompt.startsWith('buenas tardes') ||
-    normPrompt.startsWith('buenas noches') ||
-    normPrompt.startsWith('que tal') ||
-    normPrompt.startsWith('saludos') ||
-    normPrompt === 'oye' ||
-    normPrompt === 'ayuda'
-  ) {
-    return {
-      respuesta:
-        '¡Hola! Soy tu Asistente Técnico RIALSA de Grupo Industrial Delnorte. Sé que a veces la tecnología nos da dolores de cabeza: cuéntame con tus propias palabras qué está fallando o qué problema tienes y te guiaré paso a pasito para solucionarlo.',
-      pasos: [
-        'Escribe aquí abajo lo que pasa (ej: "no puedo imprimir", "mi compu está lenta", "olvidé mi contraseña").',
-        'No te preocupes por usar términos técnicos; dime lo que ves en la pantalla.',
-        'Te daré los pasos más fáciles para arreglarlo antes de tener que esperar a un técnico.'
-      ],
-      cita: 'Guía de Asistencia Técnica RIALSA · Manual Operativo GID',
-      similitud: '0.98',
-      modelo: 'Motor Autónomo RIALSA IA',
-      requiereEscalado: false
-    };
-  }
-
-  // Caso: Agradecimiento
-  if (
-    normPrompt.includes('gracias') ||
-    normPrompt.includes('muchas gracias') ||
-    normPrompt.includes('listo') ||
-    normPrompt.includes('quedo') ||
-    normPrompt.includes('ya funciono') ||
-    normPrompt.includes('ya jalo') ||
-    normPrompt.includes('ya quedo')
-  ) {
-    return {
-      respuesta:
-        '¡Qué gran noticia! Me alegra mucho que lo hayas podido resolver y que ya puedas seguir trabajando sin problemas.',
-      pasos: [
-        'No necesitas abrir ningún ticket con soporte técnico; tu problema quedó solucionado.',
-        'Tu sesión se contabilizó exitosamente como resuelta por autogestión con IA.',
-        'Cualquier otra duda que tengas, aquí sigo disponible para ayudarte.'
-      ],
-      cita: 'Protocolo de Cierre RAG · RIALSA Knowledge Base',
-      similitud: '1.00',
-      modelo: 'Motor Autónomo RIALSA IA',
-      requiereEscalado: false
-    };
-  }
+  if(followup && history.some(t=>t.sender==='user')&&!previousArticle) return response('Entiendo que la incidencia continúa. Para avanzar, indica qué sistema o equipo falla, el mensaje exacto de error y qué comprobaciones ya realizaste. Si no hay un procedimiento aplicable, podemos escalarlo.',[],'',true);
 
   // Construir texto combinado si hay contexto de ticket
   const combinedRaw = ticketContext
@@ -599,7 +518,7 @@ function runAutonomousColloquialEngine(
     }
 
     // 3. Coincidencia de categoría si el usuario la seleccionó (+2 puntos)
-    if (ticketContext?.categoria && normalizeText(ticketContext.categoria) === normalizeText(art.categoria)) {
+    if (score > 0 && ticketContext?.categoria && normalizeText(ticketContext.categoria) === normalizeText(art.categoria)) {
       score += 2;
     }
 
@@ -610,100 +529,19 @@ function runAutonomousColloquialEngine(
   }
 
   // Si encontramos una coincidencia relevante (score >= 2)
-  if (bestMatch && bestScore >= 2) {
+  if (bestMatch && (bestScore >= 2 || /\b(vpn|wifi|wi fi|impresora|sap|erp|teams|outlook|zebra|monitor|contrasena)\b/.test(combinedNorm))) {
     const sim = Math.min(0.98, 0.82 + bestScore * 0.02).toFixed(2);
-    const encabezado = ticketContext?.asunto
-      ? `Te entiendo perfectamente. Analicé lo que reportas sobre "${ticketContext.asunto}": parece que ${bestMatch.problemaColoquial}.\n\n${bestMatch.explicacionSencilla}`
-      : `Te entiendo perfectamente. Según lo que describes, parece que ${bestMatch.problemaColoquial}.\n\n${bestMatch.explicacionSencilla}`;
+    const encabezado = `Según el manual aplicable, parece que ${bestMatch.problemaColoquial}.\n\n${bestMatch.explicacionSencilla}`;
 
     return {
       respuesta: encabezado,
       pasos: bestMatch.pasosSencillos,
       cita: `Artículo ${bestMatch.codigo}: ${bestMatch.titulo}`,
-      similitud: sim,
-      modelo: 'Motor Inteligente RIALSA (Comprensión Coloquial)',
+      similitud: "",
+      modelo: 'Catálogo técnico RIALSA',
       requiereEscalado: false
     };
   }
 
-  // Diagnóstico contextual amigable si no se identificó con exactitud
-  const subjectSnippet = ticketContext?.asunto || prompt.slice(0, 45);
-  return {
-    respuesta: `He analizado tu reporte: "${subjectSnippet}". Como no mencionaste un sistema específico o el mensaje exacto de la pantalla, vamos a descartar lo más común con estos pasos sencillos:`,
-    pasos: [
-      'Paso 1: Revisa que todos los cables de tu equipo (corriente, pantalla e internet) estén bien conectados y no flojos.',
-      'Paso 2: Cierra el programa con el que tienes problemas, espera 10 segundos y vuelve a abrirlo.',
-      'Paso 3: Si nada responde, reinicia tu computadora; esto soluciona la mayoría de los bloqueos temporales.',
-      'Si tras estos pasos sigue sin funcionar, presiona el botón "Escalar a técnico humano" para que un especialista te atienda de inmediato.'
-    ],
-    cita: 'Guía de Diagnóstico y Aislamiento de Incidencias GID (IT-STD-09)',
-    similitud: '0.80',
-    modelo: 'Motor de Razonamiento RIALSA',
-    requiereEscalado: true
-  };
-}
-
-async function callGeminiApi(
-  prompt: string,
-  apiKey: string,
-  ticketContext?: TicketDraftContext
-): Promise<AiDiagnosticResult | null> {
-  const contextPrompt = ticketContext
-    ? `\nContexto del ticket del usuario: Asunto: "${ticketContext.asunto}", Descripción: "${ticketContext.descripcion}", Categoría: "${ticketContext.categoria}".`
-    : '';
-
-  const systemPrompt = `Eres el Asistente Técnico Oficial de RIALSA (Grupo Industrial Delnorte). 
-IMPORTANTE Y MANDATORIO: Los usuarios de planta y oficinas administrativas son personas trabajadoras que NO hablan con términos técnicos (usan frases coloquiales como "la compu no jala", "se tragó el papel", "no da video", "pantalla negra", "no me deja entrar", "se me fue el net", "no me escuchan en la llamada", "se me olvidó la clave").
-Tu misión es ATINARLE exactamente a lo que les pasa con empatía y calidez humana.
-
-Instrucciones de respuesta:
-1. Habla en un tono amigable, empático y en español de México/Latinoamérica.
-2. Explica en una o dos frases sencillas por qué suele pasar ese problema (sin tecnicismos complejos).
-3. Da pasos de solución numerados, ultra sencillos y fáciles de seguir para cualquiera.
-4. Si el usuario te pide un chiste o bromea, responde con un chiste gracioso de soporte o programadores.
-5. Cita un manual oficial de Grupo Industrial Delnorte correspondiente (ej: KB-018 para impresoras, KB-032 para monitores, KB-008 para internet, etc.).
-
-Responde en formato JSON con la siguiente estructura exacta:
-{
-  "respuesta": "Texto cálido y empático reconociendo el problema en palabras sencillas",
-  "pasos": ["Paso 1...", "Paso 2...", "Paso 3..."],
-  "cita": "Artículo KB-xxx: Título del manual",
-  "similitud": "0.96",
-  "requiereEscalado": false
-}`;
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: `${systemPrompt}\n${contextPrompt}\nConsulta o mensaje del usuario: "${prompt}"` }]
-          }
-        ],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.4
-        }
-      })
-    }
-  );
-
-  if (!res.ok) return null;
-  const json = await res.json();
-  const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawText) return null;
-
-  const parsed = JSON.parse(rawText);
-  return {
-    respuesta: parsed.respuesta || 'He analizado tu consulta.',
-    pasos: Array.isArray(parsed.pasos) ? parsed.pasos : ['Revisar cables y reiniciar equipo.'],
-    cita: parsed.cita || 'Base de Conocimiento RIALSA GID',
-    similitud: String(parsed.similitud || '0.95'),
-    modelo: 'Google Gemini 1.5 Flash (Cloud LLM)',
-    requiereEscalado: Boolean(parsed.requiereEscalado)
-  };
+  return response('No encontré un procedimiento específico en los manuales autorizados para esta incidencia. ¿Qué equipo o aplicación utilizas, qué mensaje aparece y desde cuándo sucede? Si no podemos identificar la causa, puedes escalar el caso a soporte.',[], '', true);
 }
