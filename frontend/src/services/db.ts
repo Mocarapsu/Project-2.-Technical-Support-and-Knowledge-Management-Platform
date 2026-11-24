@@ -273,8 +273,18 @@ export function saveNewUser(user: {
 export function getCurrentSessionUser(): UserAccount | null {
   if (!DEMO_MODE) return null;
   try {
+    if (sessionStorage.getItem('rialsa_explicit_logout') === 'true') {
+      return null;
+    }
     const raw = sessionStorage.getItem(CURRENT_USER_KEY);
     if (raw) return JSON.parse(raw);
+
+    // Entrada directa en Modo Demo para que a nadie le pida iniciar sesión ni contraseñas
+    const defaultUser = DEFAULT_USERS.find(u => u.rol === 'tecnico') || DEFAULT_USERS[0];
+    if (defaultUser) {
+      sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(defaultUser));
+      return defaultUser;
+    }
   } catch {}
   return null;
 }

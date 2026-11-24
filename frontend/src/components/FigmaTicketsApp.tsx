@@ -13,8 +13,8 @@ import { TechnicianKbView } from './views/TechnicianKbView';
 import { AdminDashboard } from './AdminDashboard';
 import { LoginSplitView } from './auth/LoginSplitView';
 import { AuthModalViews } from './auth/AuthModalViews';
-import { ActiveScreen, AuthScreen, TicketItem, TicketPriority, TechnicianProfile, UserAccount, AppNotification } from '../types/figma-tickets';
-import { getStoredTickets, saveStoredTickets, getStoredTechnicians, saveStoredTechnicians, getCurrentSessionUser, setCurrentSessionUser, getStoredUsers, saveNewUser, getStoredNotifications, saveStoredNotifications } from '../services/db';
+import { ActiveScreen, AuthScreen, TicketItem, TicketPriority, TechnicianProfile, UserAccount, AppNotification, RoleMode } from '../types/figma-tickets';
+import { getStoredTickets, saveStoredTickets, getStoredTechnicians, saveStoredTechnicians, getCurrentSessionUser, setCurrentSessionUser, getStoredUsers, saveNewUser, getStoredNotifications, saveStoredNotifications, DEFAULT_USERS } from '../services/db';
 import { DEMO_MODE, supabase } from '../services/supabaseClient';
 import { loadCloudProfile, loadWorkspace, cloudTicketAction, cloudMarkRead, cloudAddTechnician, signOutCloud } from '../services/cloudWorkspace';
 import { canViewTicket, visibleTicket, notificationVisible, normalizeCategory, PRIORITIES, CATEGORIES, textOnlyIcon, slaText } from '../services/ticketDomain';
@@ -48,10 +48,12 @@ export const FigmaTicketsApp:React.FC = () => {
 
   function clearSession() {
     generation.current++; identity.current=''; knownNotifications.current=null; lock.current=false;
+    try { sessionStorage.setItem('rialsa_explicit_logout', 'true'); } catch {}
     setUser(null);setCurrentSessionUser(null);setScreen('auth_login_default');setSelectedId(null);setDraft(null);setToast(null);setError('');setBusy(false);setLoading(false);setConnected(false);setMobileOpen(false);
     if (!DEMO_MODE) {setTickets([]);setTechnicians([]);setNotifications([]);}
   }
   function login(next:UserAccount) {
+    try { sessionStorage.removeItem('rialsa_explicit_logout'); } catch {}
     generation.current++;identity.current=next.id;knownNotifications.current=null;lock.current=false;
     const {id,nombre,email,rol,departamento,estado,fechaRegistro}=next;
     const safe={id,nombre,email,rol,departamento,estado,fechaRegistro};
@@ -164,12 +166,18 @@ export const FigmaTicketsApp:React.FC = () => {
     updated.historialAuditoria=[event,...(original.historialAuditoria||[])];setLocalTickets(all.map(x=>x.id===id?updated:x));if(title)notify(updated,title,message,type);
   });
   const addTech=(tech:TechnicianProfile)=>perform(async()=>{if(user?.rol!=='admin')throw new Error('Permisos insuficientes.');if(!DEMO_MODE){await cloudAddTechnician(tech);await refreshWorkspace();return;}if(getStoredUsers().some(u=>u.email===tech.email))throw new Error('El correo ya está registrado.');saveNewUser({nombre:tech.nombre,email:tech.email,rol:'tecnico',departamento:tech.especialidad,password:'Password123!'});const next=[...getStoredTechnicians().filter(t=>t.email!==tech.email),tech];saveStoredTechnicians(next);setTechnicians(next);notify(undefined,'Técnico registrado',tech.nombre,'alerta');});
+  const switchRole = (newRole: RoleMode) => {
+    if (DEMO_MODE) {
+      const target = DEFAULT_USERS.find(u => u.rol === newRole);
+      if (target) login(target);
+    }
+  };
   const retry=()=>{if(DEMO_MODE){setError('');return;}setLoading(true);setError('');refreshWorkspace().catch(()=>{setLoading(false);setError('No se pudo conectar. Verifica Supabase y la migración QA V2.');});};
   if(checking)return <div className="min-h-screen grid place-items-center bg-slate-50 text-slate-700"><div role="status" className="flex gap-2 items-center"><Loader2 className="animate-spin w-5 h-5"/>Verificando sesión…</div></div>;
   if(!user)return <div className="min-h-screen bg-[#0B0D11]">{error&&<p role="alert" className="p-3 text-sm bg-red-50 text-red-800">{error}</p>}{actualScreen==='auth_login_default'?<LoginSplitView onLoginSuccess={login} onForgotPassword={()=>navigate('auth_recuperar')} onNavigateState={navigate}/>:<AuthModalViews currentScreen={actualScreen as AuthScreen} onNavigate={navigate} onBackToLogin={()=>navigate('auth_login_default')}/>}</div>;
 
   return <div className="rialsa-shell min-h-screen bg-[#F7F8FA] text-slate-900 flex h-dvh overflow-hidden">
-    <Sidebar key={user.id} currentRole={user.rol} currentScreen={actualScreen} currentUser={user} onNavigate={navigate} onLogout={logout} collapsed={collapsed} onToggleCollapse={()=>setCollapsed(v=>!v)} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)}/>
+    <Sidebar key={user.id} currentRole={user.rol} currentScreen={actualScreen} currentUser={user} onNavigate={navigate} onRoleToggle={switchRole} onLogout={logout} collapsed={collapsed} onToggleCollapse={()=>setCollapsed(v=>!v)} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)}/>
     <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
       <HeaderBar key={user.id} currentScreen={actualScreen} currentUser={user} notifications={visibleNotifs} onMarkAllAsRead={()=>markRead()} onSelectNotification={n=>{void markRead(n.id);if(n.ticketId)selectTicket(n.ticketId);}} onHelp={()=>navigate('tecnico_kb')} onOpenMenu={()=>setMobileOpen(true)} connected={connected} demo={DEMO_MODE}/>
       <div className="flex-1 overflow-y-auto min-w-0" id="main-content">
