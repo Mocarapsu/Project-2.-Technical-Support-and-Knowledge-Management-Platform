@@ -125,6 +125,7 @@ export const DEFAULT_TICKETS: TicketItem[] = DEMO_MODE ? [
     id: 'TCK-1045',
     asunto: 'ERP bloqueado al facturar remisión',
     solicitante: 'Carlos Operador Planta',
+    solicitanteId: 'USR-01',
     prioridad: 'Crítica',
     categoria: 'Software',
     estado: 'Resuelto',
@@ -145,6 +146,7 @@ export const DEFAULT_TICKETS: TicketItem[] = DEMO_MODE ? [
     id: 'TCK-1046',
     asunto: 'Sin acceso a VPN desde casa',
     solicitante: 'Ricardo Daniel Hernández',
+    solicitanteId: 'USR-02',
     prioridad: 'Alta',
     categoria: 'Acceso',
     estado: 'En progreso',
@@ -156,7 +158,8 @@ export const DEFAULT_TICKETS: TicketItem[] = DEMO_MODE ? [
   {
     id: 'TCK-1047',
     asunto: 'Impresora térmica de etiquetas no responde',
-    solicitante: 'Mario Díaz',
+    solicitante: 'Carlos Operador Planta',
+    solicitanteId: 'USR-01',
     prioridad: 'Media',
     categoria: 'Hardware',
     estado: 'Abierto',
@@ -169,6 +172,7 @@ export const DEFAULT_TICKETS: TicketItem[] = DEMO_MODE ? [
     id: 'TCK-1048',
     asunto: 'Sin conexión VPN laptop fuera de oficina',
     solicitante: 'Carlos Operador Planta',
+    solicitanteId: 'USR-01',
     prioridad: 'Alta',
     categoria: 'Acceso',
     estado: 'En progreso',
@@ -189,6 +193,7 @@ export const DEFAULT_TICKETS: TicketItem[] = DEMO_MODE ? [
     id: 'TCK-1049',
     asunto: 'Fallo de red en conmutador planta',
     solicitante: 'Carlos Operador Planta',
+    solicitanteId: 'USR-01',
     prioridad: 'Baja',
     categoria: 'Redes',
     estado: 'En progreso',
@@ -196,6 +201,27 @@ export const DEFAULT_TICKETS: TicketItem[] = DEMO_MODE ? [
     fechaCreacion: '15 oct 2026 - 08:45',
     slaRestante: '07 h 30 min',
     comentariosPublicos: []
+  },
+  {
+    id: 'TCK-1050',
+    asunto: 'Optimización de microservicio RAG e indexación de artículos TI',
+    solicitante: 'Ricardo Daniel Hernández',
+    solicitanteId: 'USR-02',
+    prioridad: 'Media',
+    categoria: 'Software',
+    estado: 'En progreso',
+    asignacion: 'Salvador Rivera Delgado',
+    fechaCreacion: '15 oct 2026 - 10:00',
+    slaRestante: '04 h 15 min',
+    comentariosPublicos: [
+      {
+        id: 'COM-02',
+        autor: 'Salvador Rivera Delgado',
+        rol: 'tecnico',
+        texto: 'Se actualizaron los 15 artículos de la base de conocimiento con embeddings y búsqueda por similitud.',
+        fecha: '15 oct 2026 - 10:15'
+      }
+    ]
   }
 ] : [];
 
@@ -253,6 +279,36 @@ export function saveNewUser(user: {
     addTechnicianFromUser(newUser);
   }
 
+  // Si es un empleado nuevo en Demo Mode, sembramos un ticket inicial para que tenga datos inmediatos
+  if (DEMO_MODE && newUser.rol === 'empleado') {
+    const currentTickets = getStoredTickets();
+    const nextNum = Math.max(1050, ...currentTickets.map(t => Number(t.id.replace(/^TCK-/, '')) || 0)) + 1;
+    const starterTicket: TicketItem = {
+      id: `TCK-${nextNum}`,
+      asunto: 'Bienvenida a RIALSA · Provisión inicial de accesos y equipo',
+      solicitante: newUser.nombre,
+      solicitanteId: newUser.id,
+      prioridad: 'Media',
+      categoria: 'Acceso',
+      estado: 'En progreso',
+      asignacion: 'Salvador Rivera Delgado',
+      fechaCreacion: 'Hoy - Recién creado',
+      slaRestante: '03 h 30 min',
+      comentariosPublicos: [
+        {
+          id: `COM-${nextNum}`,
+          autor: 'Salvador Rivera Delgado',
+          rol: 'tecnico',
+          texto: `Hola ${newUser.nombre}, tu cuenta institucional quedó habilitada y tu equipo está listo para operar.`,
+          fecha: 'Hoy'
+        }
+      ],
+      notasInternas: [],
+      historialAuditoria: []
+    };
+    saveStoredTickets([starterTicket, ...currentTickets]);
+  }
+
   // Sincronizar en segundo plano con Supabase si está disponible
   if (DEMO_MODE && isSupabaseConfigured && supabase) {
     supabase.from('users').upsert({
@@ -298,6 +354,10 @@ export function getStoredTickets(): TicketItem[] {
       return DEFAULT_TICKETS.map(normalizeTicket);
     }
     const parsed: TicketItem[] = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.setItem(TICKETS_STORAGE_KEY, JSON.stringify(DEFAULT_TICKETS));
+      return DEFAULT_TICKETS.map(normalizeTicket);
+    }
     return parsed.map((t) => normalizeTicket({
       ...t,
       comentariosPublicos: Array.isArray(t.comentariosPublicos) ? t.comentariosPublicos : [],
