@@ -78,7 +78,7 @@ export const TicketTable:React.FC<Props>=({tickets=[],currentUser:user,onSelectT
               </button>
               <button type="button" className={`px-3 py-2 border-b-2 text-sm whitespace-nowrap font-medium transition cursor-pointer flex items-center gap-1.5 ${assignment==='Asignados a mí'?'border-blue-600 text-blue-700 font-semibold':'border-transparent text-slate-500 hover:text-slate-800'}`} onClick={()=>{setAssignment('Asignados a mí');setStatus('Todos');setPriority('Todas');}}>
                 <UserCheck size={15}/>
-                <span>🎯 Mis tickets asignados</span>
+                <span>Mis tickets asignados</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${assignment==='Asignados a mí'?'bg-blue-600 text-white':'bg-blue-100 text-blue-700'}`}>{assigned}</span>
               </button>
               <button type="button" className={`px-3 py-2 border-b-2 text-sm whitespace-nowrap font-medium transition cursor-pointer flex items-center gap-1.5 ${assignment==='Sin asignar'?'border-amber-600 text-amber-700 font-semibold':'border-transparent text-slate-500 hover:text-slate-800'}`} onClick={()=>{setAssignment('Sin asignar');setStatus('Todos');setPriority('Todas');}}>
