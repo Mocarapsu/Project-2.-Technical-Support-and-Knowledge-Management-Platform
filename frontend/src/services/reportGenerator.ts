@@ -3,7 +3,8 @@ import { TicketItem, TechnicianProfile } from '../types/figma-tickets';
 
 export const generateReportHTML = (
   tickets: TicketItem[],
-  technicians: TechnicianProfile[]
+  technicians: TechnicianProfile[],
+  periodoLabel?: string
 ): string => {
   const now = new Date();
   const fechaStr = now.toLocaleDateString('es-MX', {
@@ -355,7 +356,7 @@ export const generateReportHTML = (
           <strong>Folio:</strong> <span class="folio-text">${folio}</span><br />
           <strong>Fecha:</strong> ${fechaStr}<br />
           <strong>Hora de emisión:</strong> ${horaStr}<br />
-          <strong>Periodo:</strong> Fecha de emisión
+          <strong>Periodo:</strong> ${esc(periodoLabel || 'Histórico consolidado')}
         </td>
       </tr>
     </table>
@@ -530,8 +531,8 @@ export const generateReportHTML = (
 /**
  * Abre una ventana limpia con el informe formal y ejecuta la impresión directa en PDF
  */
-export const printExecutiveReport = (tickets: TicketItem[], technicians: TechnicianProfile[]) => {
-  const htmlContent = generateReportHTML(tickets, technicians);
+export const printExecutiveReport = (tickets: TicketItem[], technicians: TechnicianProfile[], periodoLabel?: string) => {
+  const htmlContent = generateReportHTML(tickets, technicians, periodoLabel);
   const printWindow = window.open('', '_blank', 'width=950,height=850');
   if (!printWindow) {
     // Si el navegador bloqueó la ventana emergente, usamos fallback en iframe oculto
@@ -572,8 +573,8 @@ export const printExecutiveReport = (tickets: TicketItem[], technicians: Technic
 /**
  * Descarga el informe ejecutivo oficial como archivo HTML independiente de alta fidelidad
  */
-export const downloadReportHTML = (tickets: TicketItem[], technicians: TechnicianProfile[]) => {
-  const htmlContent = generateReportHTML(tickets, technicians);
+export const downloadReportHTML = (tickets: TicketItem[], technicians: TechnicianProfile[], periodoLabel?: string) => {
+  const htmlContent = generateReportHTML(tickets, technicians, periodoLabel);
   const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

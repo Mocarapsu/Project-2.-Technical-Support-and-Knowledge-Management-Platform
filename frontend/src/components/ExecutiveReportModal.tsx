@@ -9,20 +9,22 @@ interface Props {
   onClose: () => void;
   tickets: TicketItem[];
   technicians: TechnicianProfile[];
+  periodoLabel?: string;
 }
 
 export const ExecutiveReportModal: React.FC<Props> = ({
   isOpen,
   onClose,
   tickets,
-  technicians
+  technicians,
+  periodoLabel
 }) => {
   const shouldReduceMotion = useReducedMotion();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const reportHTML = useMemo(() => {
-    return generateReportHTML(tickets, technicians);
-  }, [tickets, technicians]);
+    return generateReportHTML(tickets, technicians, periodoLabel);
+  }, [tickets, technicians, periodoLabel]);
 
   if (!isOpen) return null;
 
@@ -31,7 +33,7 @@ export const ExecutiveReportModal: React.FC<Props> = ({
       iframeRef.current.contentWindow.focus();
       iframeRef.current.contentWindow.print();
     } else {
-      printExecutiveReport(tickets, technicians);
+      printExecutiveReport(tickets, technicians, periodoLabel);
     }
   };
 
@@ -74,7 +76,7 @@ export const ExecutiveReportModal: React.FC<Props> = ({
 
             <button
               type="button"
-              onClick={() => downloadReportHTML(tickets, technicians)}
+              onClick={() => downloadReportHTML(tickets, technicians, periodoLabel)}
               className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />

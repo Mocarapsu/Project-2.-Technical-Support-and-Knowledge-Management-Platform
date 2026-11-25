@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -19,10 +19,12 @@ import {
   BarChart3,
   PieChart,
   Activity,
-  Layers
+  Layers,
+  Calendar,
+  Filter
 } from 'lucide-react';
 import { TicketItem, TechnicianProfile, UserAccount } from '../types/figma-tickets';
-import { CATEGORIES, normalizeCategory, slaText } from '../services/ticketDomain';
+import { CATEGORIES, normalizeCategory, slaText, getTicketDate } from '../services/ticketDomain';
 import { ExecutiveReportModal } from './ExecutiveReportModal';
 
 export interface AuditEvent {
@@ -66,15 +68,89 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [showAddTechModal, setShowAddTechModal] = useState(false);
   const [assignmentSuccessMsg, setAssignmentSuccessMsg] = useState<string | null>(null);
 
+  // Filtro de rangos de fechas (Día a día, Mes a mes, Presets rápidos)
+  type DatePreset = 'all' | 'today' | '7d' | '30d' | 'this_month' | 'last_month' | 'custom';
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  // Filtrar tickets por rango de fechas
+  const { filteredTickets, periodoLabel } = useMemo(() => {
+    if (datePreset === 'all') {
+      return {
+        filteredTickets: tickets,
+        periodoLabel: 'Histórico consolidado (todos los registros)'
+      };
+    }
+
+    const now = new Date();
+    let start: Date | null = null;
+    let end: Date | null = null;
+    let label = '';
+
+    if (datePreset === 'today') {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      label = `Hoy (${now.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })})`;
+    } else if (datePreset === '7d') {
+      start = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(now);
+      label = `Últimos 7 días (${start.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })})`;
+    } else if (datePreset === '30d') {
+      start = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(now);
+      label = `Últimos 30 días (${start.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })})`;
+    } else if (datePreset === 'this_month') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      label = `Este mes (${now.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })})`;
+    } else if (datePreset === 'last_month') {
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      label = `Mes anterior (${prevDate.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })})`;
+    } else if (datePreset === 'custom') {
+      if (startDate) {
+        const [sy, sm, sd] = startDate.split('-').map(Number);
+        start = new Date(sy, sm - 1, sd, 0, 0, 0, 0);
+      }
+      if (endDate) {
+        const [ey, em, ed] = endDate.split('-').map(Number);
+        end = new Date(ey, em - 1, ed, 23, 59, 59, 999);
+      }
+      if (start && end) {
+        label = `Del ${start.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} al ${end.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      } else if (start) {
+        label = `Desde ${start.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      } else if (end) {
+        label = `Hasta ${end.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      } else {
+        label = 'Rango personalizado';
+      }
+    }
+
+    const filtered = tickets.filter(t => {
+      const d = getTicketDate(t);
+      if (!d) return true;
+      if (start && d.getTime() < start.getTime()) return false;
+      if (end && d.getTime() > end.getTime()) return false;
+      return true;
+    });
+
+    return { filteredTickets: filtered, periodoLabel: label };
+  }, [tickets, datePreset, startDate, endDate]);
+
   // Formulario nuevo técnico
   const [newTechNombre, setNewTechNombre] = useState('');
   const [newTechEmail, setNewTechEmail] = useState('');
   const [newTechEspecialidad, setNewTechEspecialidad] = useState('');
   const [newTechNivel, setNewTechNivel] = useState<'Nivel 1 (Mesa de Ayuda)' | 'Nivel 2 (Especialista)' | 'Nivel 3 (Infraestructura)'>('Nivel 2 (Especialista)');
 
-  // Calcular carga dinámica por técnico
+  // Calcular carga dinámica por técnico en el periodo
   const techWorkloads = technicians.map((tech) => {
-    const count = tickets.filter(
+    const count = filteredTickets.filter(
       (t) => t.asignacion.toLowerCase().includes(tech.nombre.toLowerCase()) && t.estado !== 'Resuelto'
     ).length;
     return { ...tech, ticketsActivos: count };
@@ -84,25 +160,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const minLoad = Math.min(...techWorkloads.map((t) => t.ticketsActivos));
 
   // Buscar si existe un ticket crítico o de alta prioridad NO RESUELTO
-  const pendingCriticalTicket = tickets.find(
+  const pendingCriticalTicket = filteredTickets.find(
     (t) => t.estado !== 'Resuelto' && (t.prioridad === 'Crítica' || t.prioridad === 'Alta')
   );
 
-  // BUG-014: Métricas y KPIs dinámicos calculados del estado real
-  const totalTickets = tickets.length;
-  const resueltosCount = tickets.filter((t) => t.estado === 'Resuelto').length;
-  const enProgresoCount = tickets.filter((t) => t.estado === 'En progreso').length;
-  const abiertosCount = tickets.filter((t) => t.estado === 'Abierto').length;
-  const criticosCount = tickets.filter((t) => t.prioridad === 'Crítica' && t.estado !== 'Resuelto').length;
+  // BUG-014: Métricas y KPIs dinámicos calculados del estado real en el periodo
+  const totalTickets = filteredTickets.length;
+  const resueltosCount = filteredTickets.filter((t) => t.estado === 'Resuelto').length;
+  const enProgresoCount = filteredTickets.filter((t) => t.estado === 'En progreso').length;
+  const abiertosCount = filteredTickets.filter((t) => t.estado === 'Abierto').length;
+  const criticosCount = filteredTickets.filter((t) => t.prioridad === 'Crítica' && t.estado !== 'Resuelto').length;
 
-  const categoryCounts = Array.from(new Set([...CATEGORIES, ...tickets.map(t=>normalizeCategory(t.categoria))])).map(category=>({category,count:tickets.filter(t=>normalizeCategory(t.categoria)===category).length}));
+  const categoryCounts = Array.from(new Set([...CATEGORIES, ...filteredTickets.map(t=>normalizeCategory(t.categoria))])).map(category=>({category,count:filteredTickets.filter(t=>normalizeCategory(t.categoria)===category).length}));
   const pct = (val:number) => totalTickets ? Math.round(val/totalTickets*100) : 0;
-  const measured = tickets.filter(t=>t.estado==='Resuelto'&&t.resolvedAt&&t.slaDeadline);
+  const measured = filteredTickets.filter(t=>t.estado==='Resuelto'&&t.resolvedAt&&t.slaDeadline);
   const slaCompliance = measured.length ? `${Math.round(measured.filter(t=>slaText(t)==='Cumplido').length/measured.length*100)}%` : 'Sin datos';
-  const durations = tickets.filter(t=>t.estado==='Resuelto'&&t.createdAt&&t.resolvedAt).map(t=>(Date.parse(t.resolvedAt!)-Date.parse(t.createdAt!))/3600000).filter(n=>Number.isFinite(n)&&n>=0);
+  const durations = filteredTickets.filter(t=>t.estado==='Resuelto'&&t.createdAt&&t.resolvedAt).map(t=>(Date.parse(t.resolvedAt!)-Date.parse(t.createdAt!))/3600000).filter(n=>Number.isFinite(n)&&n>=0);
   const average = durations.length ? `${(durations.reduce((a,b)=>a+b,0)/durations.length).toFixed(1)} h` : 'Sin datos';
-  const auditLogs = tickets.flatMap(t=>(t.historialAuditoria||[]).map((action,i)=>({id:`${t.id}-${i}`,ticketId:t.id,action,slaStatus:slaText(t)})));
-  const escaladosCount = tickets.filter(t=>t.estado==='Escalado').length;
+  const auditLogs = filteredTickets.flatMap(t=>(t.historialAuditoria||[]).map((action,i)=>({id:`${t.id}-${i}`,ticketId:t.id,action,slaStatus:slaText(t)})));
+  const escaladosCount = filteredTickets.filter(t=>t.estado==='Escalado').length;
+
+  const handleExportCSV = () => {
+    const escape = (v: string) => `"${(v || '').replace(/"/g, '""')}"`;
+    const rows = [
+      'Folio,Asunto,Solicitante,Departamento,Categoria,Prioridad,Estado,Asignacion,FechaCreacion,SLARestante',
+      ...filteredTickets.map(t => [
+        t.id,
+        t.asunto,
+        t.solicitante,
+        t.departamento || '',
+        t.categoria,
+        t.prioridad,
+        t.estado,
+        t.asignacion,
+        t.fechaCreacion || t.createdAt || '',
+        t.slaRestante || ''
+      ].map(escape).join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff', rows], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const cleanLabel = (periodoLabel || 'Historico').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
+    a.download = `RIALSA_Reporte_${cleanLabel}_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleConfirmAssignment = async () => {
     if (!selectedTicketForAssign || !targetTech) return;
@@ -162,19 +266,79 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <div className="flex items-center gap-2">
             <button
-              onClick={onExportCSV}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5 border border-slate-200"
+              onClick={handleExportCSV}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5 border border-slate-200 cursor-pointer"
+              title="Descargar datos del periodo seleccionado en formato CSV"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Exportar CSV</span>
             </button>
             <button
               onClick={() => setShowExecutiveReportModal(true)}
-              className="bg-slate-900 hover:bg-black text-white text-xs font-semibold px-3.5 py-2 rounded-lg  transition flex items-center gap-1.5"
+              className="bg-slate-900 hover:bg-black text-white text-xs font-semibold px-3.5 py-2 rounded-lg  transition flex items-center gap-1.5 cursor-pointer"
+              title="Generar dictamen ejecutivo oficial para auditoría y comité"
             >
               <FileText className="w-3.5 h-3.5 text-blue-400" />
               <span>Reporte Ejecutivo PDF</span>
             </button>
+          </div>
+        </div>
+
+        {/* Date Range & Period Filter Bar */}
+        <div className="bg-slate-50 border border-slate-200/90 rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-semibold text-slate-700 flex items-center gap-1.5 mr-2">
+              <Calendar className="w-4 h-4 text-slate-500" />
+              <span>Rango de fechas:</span>
+            </span>
+            {[
+              { id: 'all', label: 'Todo el histórico' },
+              { id: 'today', label: 'Hoy' },
+              { id: '7d', label: 'Últimos 7 días' },
+              { id: '30d', label: 'Últimos 30 días' },
+              { id: 'this_month', label: 'Este mes' },
+              { id: 'last_month', label: 'Mes anterior' },
+              { id: 'custom', label: 'Personalizado' }
+            ].map(preset => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => setDatePreset(preset.id as DatePreset)}
+                className={`px-2.5 py-1 rounded-md font-semibold text-xs transition cursor-pointer ${
+                  datePreset === preset.id
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+
+          {datePreset === 'custom' && (
+            <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-md border border-slate-200">
+              <label className="text-[11px] text-slate-500 font-medium">Desde:</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="text-xs text-slate-800 bg-transparent focus:outline-none"
+              />
+              <label className="text-[11px] text-slate-500 font-medium ml-1">Hasta:</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="text-xs text-slate-800 bg-transparent focus:outline-none"
+              />
+            </div>
+          )}
+
+          <div className="text-slate-500 text-[11px] font-medium flex items-center gap-2">
+            <span className="bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded font-mono text-xs">
+              {filteredTickets.length} de {tickets.length} tickets
+            </span>
+            <span className="italic">{periodoLabel}</span>
           </div>
         </div>
 
@@ -201,7 +365,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             <Ticket className="w-3.5 h-3.5" />
-            <span>2. Asignar y Rebalancear Tickets ({tickets.length})</span>
+            <span>2. Asignar y Rebalancear Tickets ({filteredTickets.length})</span>
           </button>
 
           <button
@@ -315,7 +479,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onClick={() => setActiveTab('assignments')}
                     className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-lg  transition flex items-center gap-1.5 cursor-pointer"
                   >
-                    <span>Ver Portafolio de Tickets ({tickets.length})</span>
+                    <span>Ver Portafolio de Tickets ({filteredTickets.length})</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -481,7 +645,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </p>
             </div>
             <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 font-bold px-3 py-1 rounded-full">
-              {tickets.length} tickets en sistema
+              {filteredTickets.length} tickets en periodo
             </span>
           </div>
 
@@ -498,7 +662,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {tickets.map((t) => (
+                {filteredTickets.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4 font-bold text-blue-700">{t.id}</td>
                     <td className="py-3.5 px-4 font-semibold text-slate-900 max-w-xs truncate">
@@ -801,7 +965,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* MODAL: ESTADÍSTICAS Y RENDIMIENTO DEL TÉCNICO (USER REQ)   */}
       {/* ========================================================= */}
       {selectedTechForStats && (() => {
-        const techTickets = tickets.filter(
+        const techTickets = filteredTickets.filter(
           (t) => t.asignacion.toLowerCase().includes(selectedTechForStats.nombre.toLowerCase())
         );
         const resolvedCount = techTickets.filter((t) => t.estado === 'Resuelto').length;
@@ -992,8 +1156,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <ExecutiveReportModal
         isOpen={showExecutiveReportModal}
         onClose={() => setShowExecutiveReportModal(false)}
-        tickets={tickets}
+        tickets={filteredTickets}
         technicians={technicians}
+        periodoLabel={periodoLabel}
       />
 
     </div>
