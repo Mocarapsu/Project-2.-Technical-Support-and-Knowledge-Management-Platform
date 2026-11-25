@@ -42,7 +42,7 @@ export const DEFAULT_USERS: (UserAccount & { password?: string })[] = DEMO_MODE 
     nombre: 'Alfredo González Soto',
     email: 'alfredo@gid.com.mx',
     rol: 'tecnico',
-    departamento: 'Mesa de Ayuda L2 / Backend',
+    departamento: 'Software, SAP ERP & Bases de Datos',
     estado: 'Activo',
     fechaRegistro: '15 oct 2026',
     password: 'Password123!'
@@ -52,13 +52,93 @@ export const DEFAULT_USERS: (UserAccount & { password?: string })[] = DEMO_MODE 
     nombre: 'Salvador Rivera Delgado',
     email: 'salvador@gid.com.mx',
     rol: 'tecnico',
-    departamento: 'Microservicios IA & Automatización',
+    departamento: 'Software, Microservicios IA & Automatización',
     estado: 'Activo',
     fechaRegistro: '15 oct 2026',
     password: 'Password123!'
   },
   {
     id: 'USR-05',
+    nombre: 'Mariana Fuentes',
+    email: 'mariana@gid.com.mx',
+    rol: 'tecnico',
+    departamento: 'Software, Aplicaciones Web & Portales',
+    estado: 'Activo',
+    fechaRegistro: '15 oct 2026',
+    password: 'Password123!'
+  },
+  {
+    id: 'USR-06',
+    nombre: 'Carlos Mendoza',
+    email: 'carlos@gid.com.mx',
+    rol: 'tecnico',
+    departamento: 'Redes, Switches & Telecomunicaciones',
+    estado: 'Activo',
+    fechaRegistro: '15 oct 2026',
+    password: 'Password123!'
+  },
+  {
+    id: 'USR-07',
+    nombre: 'Roberto Villarreal',
+    email: 'roberto@gid.com.mx',
+    rol: 'tecnico',
+    departamento: 'Redes, Cableado Estructurado & Firewall',
+    estado: 'Activo',
+    fechaRegistro: '15 oct 2026',
+    password: 'Password123!'
+  },
+  {
+    id: 'USR-08',
+    nombre: 'Elena Ramos',
+    email: 'elena@gid.com.mx',
+    rol: 'tecnico',
+    departamento: 'Redes Industriales & Telecomunicaciones',
+    estado: 'Activo',
+    fechaRegistro: '15 oct 2026',
+    password: 'Password123!'
+  },
+  {
+    id: 'USR-09',
+    nombre: 'Héctor Ramírez',
+    email: 'hector@gid.com.mx',
+    rol: 'tecnico',
+    departamento: 'Hardware, Servidores Físicos & Mantenimiento',
+    estado: 'Activo',
+    fechaRegistro: '15 oct 2026',
+    password: 'Password123!'
+  },
+  {
+    id: 'USR-10',
+    nombre: 'Fernando Garza',
+    email: 'fernando@gid.com.mx',
+    rol: 'tecnico',
+    departamento: 'Hardware, Impresoras Térmicas & Periféricos',
+    estado: 'Activo',
+    fechaRegistro: '15 oct 2026',
+    password: 'Password123!'
+  },
+  {
+    id: 'USR-11',
+    nombre: 'Ana Torres',
+    email: 'ana@gid.com.mx',
+    rol: 'tecnico',
+    departamento: 'Acceso, Cuentas & Mesa de Ayuda',
+    estado: 'Activo',
+    fechaRegistro: '15 oct 2026',
+    password: 'Password123!'
+  },
+  {
+    id: 'USR-12',
+    nombre: 'Laura Medina',
+    email: 'laura@gid.com.mx',
+    rol: 'tecnico',
+    departamento: 'Acceso, Directorio Activo & Credenciales',
+    estado: 'Activo',
+    fechaRegistro: '15 oct 2026',
+    password: 'Password123!'
+  },
+  {
+    id: 'USR-13',
     nombre: 'Ing. José Luis Bautista',
     email: 'bautista@gid.com.mx',
     rol: 'admin',
@@ -69,19 +149,39 @@ export const DEFAULT_USERS: (UserAccount & { password?: string })[] = DEMO_MODE 
   }
 ] : [];
 
-// 2. Técnicos Iniciales con Nivel y Especialidad
+// 2. Técnicos Iniciales con Nivel y Especialidad por Ramas
 export const DEFAULT_TECHNICIANS: TechnicianProfile[] = DEMO_MODE ? [
+  // Rama: Redes y Telecomunicaciones
   {
     id: 'TECH-01',
-    nombre: 'Ana Torres',
-    email: 'ana.torres@delnorte.com.mx',
-    especialidad: 'Mesa de Ayuda, Accesos & Cuentas',
-    nivel: 'Nivel 1 (Mesa de Ayuda)',
+    nombre: 'Carlos Mendoza',
+    email: 'carlos@gid.com.mx',
+    especialidad: 'Redes, Switches & Telecomunicaciones',
+    nivel: 'Nivel 3 (Infraestructura)',
     ticketsActivos: 1,
     estado: 'Disponible'
   },
   {
     id: 'TECH-02',
+    nombre: 'Roberto Villarreal',
+    email: 'roberto@gid.com.mx',
+    especialidad: 'Redes, Cableado Estructurado & Firewall',
+    nivel: 'Nivel 2 (Especialista)',
+    ticketsActivos: 0,
+    estado: 'Disponible'
+  },
+  {
+    id: 'TECH-03',
+    nombre: 'Elena Ramos',
+    email: 'elena@gid.com.mx',
+    especialidad: 'Redes Industriales & Telecomunicaciones',
+    nivel: 'Nivel 2 (Especialista)',
+    ticketsActivos: 1,
+    estado: 'Disponible'
+  },
+  // Rama: Software y Aplicaciones
+  {
+    id: 'TECH-04',
     nombre: 'Alfredo González Soto',
     email: 'alfredo@gid.com.mx',
     especialidad: 'Software, SAP ERP & Bases de Datos',
@@ -90,30 +190,58 @@ export const DEFAULT_TECHNICIANS: TechnicianProfile[] = DEMO_MODE ? [
     estado: 'Disponible'
   },
   {
-    id: 'TECH-03',
-    nombre: 'Carlos Mendoza',
-    email: 'carlos.mendoza@delnorte.com.mx',
-    especialidad: 'Infraestructura, Switches & Telecomunicaciones',
-    nivel: 'Nivel 3 (Infraestructura)',
-    ticketsActivos: 0,
-    estado: 'En guardia'
-  },
-  {
-    id: 'TECH-04',
+    id: 'TECH-05',
     nombre: 'Salvador Rivera Delgado',
     email: 'salvador@gid.com.mx',
-    especialidad: 'Microservicios de IA, RAG & Automatización',
+    especialidad: 'Software, Microservicios IA & Automatización',
     nivel: 'Nivel 2 (Especialista)',
-    ticketsActivos: 0,
-    estado: 'Disponible',
-    isNext: true
+    ticketsActivos: 1,
+    estado: 'Disponible'
   },
   {
-    id: 'TECH-05',
-    nombre: 'Ing. José Luis Bautista',
-    email: 'bautista@gid.com.mx',
-    especialidad: 'Ciberseguridad & Dirección de Operaciones TI',
-    nivel: 'Nivel 3 (Infraestructura)',
+    id: 'TECH-06',
+    nombre: 'Mariana Fuentes',
+    email: 'mariana@gid.com.mx',
+    especialidad: 'Software, Aplicaciones Web & Portales',
+    nivel: 'Nivel 2 (Especialista)',
+    ticketsActivos: 0,
+    estado: 'Disponible'
+  },
+  // Rama: Hardware y Equipos
+  {
+    id: 'TECH-07',
+    nombre: 'Héctor Ramírez',
+    email: 'hector@gid.com.mx',
+    especialidad: 'Hardware, Servidores Físicos & Mantenimiento',
+    nivel: 'Nivel 1 (Mesa de Ayuda)',
+    ticketsActivos: 1,
+    estado: 'Disponible'
+  },
+  {
+    id: 'TECH-08',
+    nombre: 'Fernando Garza',
+    email: 'fernando@gid.com.mx',
+    especialidad: 'Hardware, Impresoras Térmicas & Periféricos',
+    nivel: 'Nivel 1 (Mesa de Ayuda)',
+    ticketsActivos: 0,
+    estado: 'Disponible'
+  },
+  // Rama: Acceso y Directorio
+  {
+    id: 'TECH-09',
+    nombre: 'Ana Torres',
+    email: 'ana@gid.com.mx',
+    especialidad: 'Acceso, Cuentas & Mesa de Ayuda',
+    nivel: 'Nivel 1 (Mesa de Ayuda)',
+    ticketsActivos: 1,
+    estado: 'Disponible'
+  },
+  {
+    id: 'TECH-10',
+    nombre: 'Laura Medina',
+    email: 'laura@gid.com.mx',
+    especialidad: 'Acceso, Directorio Activo & Credenciales',
+    nivel: 'Nivel 1 (Mesa de Ayuda)',
     ticketsActivos: 1,
     estado: 'Disponible'
   }
@@ -162,21 +290,21 @@ export const DEFAULT_TICKETS: TicketItem[] = DEMO_MODE ? [
     solicitanteId: 'USR-01',
     prioridad: 'Media',
     categoria: 'Hardware',
-    estado: 'Abierto',
-    asignacion: 'Alfredo González Soto',
+    estado: 'En progreso',
+    asignacion: 'Héctor Ramírez',
     fechaCreacion: '15 oct 2026 - 09:12',
     slaRestante: '03 h 20 min',
     comentariosPublicos: []
   },
   {
     id: 'TCK-1048',
-    asunto: 'Sin conexión VPN laptop fuera de oficina',
+    asunto: 'Desbloqueo de token y restablecimiento de contraseña RADIUS',
     solicitante: 'Carlos Operador Planta',
     solicitanteId: 'USR-01',
     prioridad: 'Alta',
     categoria: 'Acceso',
     estado: 'En progreso',
-    asignacion: 'Mesa de ayuda - Nivel 1',
+    asignacion: 'Laura Medina',
     fechaCreacion: '15 oct 2026 - 09:23',
     slaRestante: '01 h 12 min',
     comentariosPublicos: [
@@ -191,15 +319,15 @@ export const DEFAULT_TICKETS: TicketItem[] = DEMO_MODE ? [
   },
   {
     id: 'TCK-1049',
-    asunto: 'Fallo de red en conmutador planta',
+    asunto: 'Caída intermitente en switch troncal de Planta 2',
     solicitante: 'Carlos Operador Planta',
     solicitanteId: 'USR-01',
-    prioridad: 'Baja',
+    prioridad: 'Alta',
     categoria: 'Redes',
     estado: 'En progreso',
     asignacion: 'Carlos Mendoza',
     fechaCreacion: '15 oct 2026 - 08:45',
-    slaRestante: '07 h 30 min',
+    slaRestante: '03 h 30 min',
     comentariosPublicos: []
   },
   {
@@ -222,6 +350,71 @@ export const DEFAULT_TICKETS: TicketItem[] = DEMO_MODE ? [
         fecha: '15 oct 2026 - 10:15'
       }
     ]
+  },
+  {
+    id: 'TCK-1051',
+    asunto: 'Error en transacciones RFC de facturación SAP FI/CO',
+    solicitante: 'Carlos Operador Planta',
+    solicitanteId: 'USR-01',
+    prioridad: 'Alta',
+    categoria: 'Software',
+    estado: 'En progreso',
+    asignacion: 'Alfredo González Soto',
+    fechaCreacion: '15 oct 2026 - 10:30',
+    slaRestante: '02 h 45 min',
+    comentariosPublicos: []
+  },
+  {
+    id: 'TCK-1052',
+    asunto: 'Configuración de VLAN para báscula de pesaje en patio',
+    solicitante: 'Ricardo Daniel Hernández',
+    solicitanteId: 'USR-02',
+    prioridad: 'Alta',
+    categoria: 'Redes',
+    estado: 'Resuelto',
+    asignacion: 'Roberto Villarreal',
+    fechaCreacion: '15 oct 2026 - 11:00',
+    slaRestante: '00 h 00 min',
+    comentariosPublicos: []
+  },
+  {
+    id: 'TCK-1053',
+    asunto: 'Sustitución de rodillo y calibración de sensor en Zebra ZT411',
+    solicitante: 'Carlos Operador Planta',
+    solicitanteId: 'USR-01',
+    prioridad: 'Media',
+    categoria: 'Hardware',
+    estado: 'Resuelto',
+    asignacion: 'Fernando Garza',
+    fechaCreacion: '15 oct 2026 - 11:15',
+    slaRestante: '00 h 00 min',
+    comentariosPublicos: []
+  },
+  {
+    id: 'TCK-1054',
+    asunto: 'Alta de credenciales y cuenta de correo para nuevo supervisor de turno',
+    solicitante: 'Ricardo Daniel Hernández',
+    solicitanteId: 'USR-02',
+    prioridad: 'Baja',
+    categoria: 'Acceso',
+    estado: 'Resuelto',
+    asignacion: 'Ana Torres',
+    fechaCreacion: '15 oct 2026 - 11:30',
+    slaRestante: '00 h 00 min',
+    comentariosPublicos: []
+  },
+  {
+    id: 'TCK-1055',
+    asunto: 'Fallo intermitente en enlace inalámbrico de almacén general',
+    solicitante: 'Carlos Operador Planta',
+    solicitanteId: 'USR-01',
+    prioridad: 'Media',
+    categoria: 'Redes',
+    estado: 'En progreso',
+    asignacion: 'Elena Ramos',
+    fechaCreacion: '15 oct 2026 - 11:45',
+    slaRestante: '05 h 15 min',
+    comentariosPublicos: []
   }
 ] : [];
 
@@ -237,7 +430,14 @@ export function getStoredUsers(): (UserAccount & { password?: string })[] {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(DEFAULT_USERS));
       return DEFAULT_USERS;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    const missing = DEFAULT_USERS.filter(du => !parsed.some((p: any) => p.email.toLowerCase() === du.email.toLowerCase()));
+    if (missing.length > 0) {
+      const merged = [...parsed, ...missing];
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    }
+    return parsed;
   } catch {
     return DEFAULT_USERS;
   }
@@ -358,11 +558,17 @@ export function getStoredTickets(): TicketItem[] {
       localStorage.setItem(TICKETS_STORAGE_KEY, JSON.stringify(DEFAULT_TICKETS));
       return DEFAULT_TICKETS.map(normalizeTicket);
     }
-    return parsed.map((t) => normalizeTicket({
+    const missing = DEFAULT_TICKETS.filter(dt => !parsed.some((p: any) => p.id === dt.id));
+    const merged = missing.length > 0 ? [...parsed, ...missing] : parsed;
+    if (missing.length > 0) {
+      localStorage.setItem(TICKETS_STORAGE_KEY, JSON.stringify(merged));
+    }
+    return merged.map((t) => normalizeTicket({
       ...t,
       comentariosPublicos: Array.isArray(t.comentariosPublicos) ? t.comentariosPublicos : [],
       notasInternas: Array.isArray(t.notasInternas) ? t.notasInternas : [],
-      historialAuditoria: Array.isArray(t.historialAuditoria) ? t.historialAuditoria : []
+      historialAuditoria: Array.isArray(t.historialAuditoria) ? t.historialAuditoria : [],
+      adjuntos: Array.isArray(t.adjuntos) ? t.adjuntos : []
     }));
   } catch {
     return DEFAULT_TICKETS.map(normalizeTicket);
@@ -384,7 +590,14 @@ export function getStoredTechnicians(): TechnicianProfile[] {
       localStorage.setItem(TECHS_STORAGE_KEY, JSON.stringify(DEFAULT_TECHNICIANS));
       return DEFAULT_TECHNICIANS;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    const missing = DEFAULT_TECHNICIANS.filter(dt => !parsed.some((p: any) => p.email.toLowerCase() === dt.email.toLowerCase()));
+    if (missing.length > 0) {
+      const merged = [...parsed, ...missing];
+      localStorage.setItem(TECHS_STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    }
+    return parsed;
   } catch {
     return DEFAULT_TECHNICIANS;
   }
@@ -430,7 +643,7 @@ function addTechnicianFromUser(user: UserAccount) {
 export const DEFAULT_NOTIFICATIONS: AppNotification[] = DEMO_MODE ? [
   {
     id: 'NOTIF-1',
-    titulo: '📌 Ticket Asignado',
+    titulo: 'Ticket Asignado',
     mensaje: 'El Ticket TCK-1048 fue asignado a Mesa de ayuda - Nivel 1 mediante Least-Loaded.',
     tipo: 'asignacion',
     ticketId: 'TCK-1048',
@@ -440,7 +653,7 @@ export const DEFAULT_NOTIFICATIONS: AppNotification[] = DEMO_MODE ? [
   },
   {
     id: 'NOTIF-2',
-    titulo: '💬 Nuevo Comentario en TCK-1046',
+    titulo: 'Nuevo Comentario en TCK-1046',
     mensaje: 'Carlos Operador Planta escribió: "He reiniciado el equipo y sigue mostrando el error..."',
     tipo: 'comentario',
     ticketId: 'TCK-1046',
@@ -450,7 +663,7 @@ export const DEFAULT_NOTIFICATIONS: AppNotification[] = DEMO_MODE ? [
   },
   {
     id: 'NOTIF-3',
-    titulo: '🎉 Ticket Resuelto',
+    titulo: 'Ticket Resuelto',
     mensaje: 'El Ticket TCK-1045 (ERP bloqueado al facturar) fue resuelto satisfactoriamente por Salvador Rivera.',
     tipo: 'estado',
     ticketId: 'TCK-1045',
@@ -508,7 +721,8 @@ export function mapRowToTicket(row: any): TicketItem {
     slaRestante: row.sla_restante || undefined,
     notasInternas: Array.isArray(row.notas_internas) ? row.notas_internas : [],
     comentariosPublicos: Array.isArray(row.comentarios_publicos) ? row.comentarios_publicos : [],
-    historialAuditoria: Array.isArray(row.historial_auditoria) ? row.historial_auditoria : []
+    historialAuditoria: Array.isArray(row.historial_auditoria) ? row.historial_auditoria : [],
+    adjuntos: Array.isArray(row.adjuntos) ? row.adjuntos : []
   });
 }
 
@@ -531,7 +745,8 @@ export function ticketToRow(t: TicketItem): Record<string, unknown> {
     resolved_at: t.resolvedAt || null,
     notas_internas: t.notasInternas || [],
     comentarios_publicos: t.comentariosPublicos || [],
-    historial_auditoria: t.historialAuditoria || []
+    historial_auditoria: t.historialAuditoria || [],
+    adjuntos: t.adjuntos || []
   };
 }
 

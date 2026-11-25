@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { UploadCloud, Sparkles, CheckCircle2, ArrowRight, AlertCircle, Shield } from 'lucide-react';
+import { UploadCloud, Sparkles, CheckCircle2, ArrowRight, AlertCircle, Shield, X } from 'lucide-react';
 import { determineAutomaticPriority } from '../../services/ticketDomain';
 
 interface Props {
@@ -8,9 +8,9 @@ interface Props {
   internal?: boolean;
   onCancel?: () => void;
   onSubmitSuccess?: () => void;
-  onSubmitTicket?: (ticket: { asunto: string; descripcion: string; categoria: string; prioridad: string; contextoIa?: string }) => void | Promise<boolean>; 
-  onTryAiFirst?: (draft?: { asunto: string; descripcion: string; categoria: string; prioridad: string }) => void;
-  initialDraft?: { asunto: string; descripcion: string; categoria: string; prioridad?: string; contextoIa?: string } | null;
+  onSubmitTicket?: (ticket: { asunto: string; descripcion: string; categoria: string; prioridad: string; contextoIa?: string; adjuntos?: string[] }) => void | Promise<boolean>; 
+  onTryAiFirst?: (draft?: { asunto: string; descripcion: string; categoria: string; prioridad: string; adjuntos?: string[] }) => void;
+  initialDraft?: { asunto: string; descripcion: string; categoria: string; prioridad?: string; contextoIa?: string; adjuntos?: string[] } | null;
 }
 
 export const EmployeeNewTicketView: React.FC<Props> = ({
@@ -26,7 +26,39 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
   const [descripcion, setDescripcion] = useState(initialDraft?.descripcion || '');
   const [categoria, setCategoria] = useState(initialDraft?.categoria || '');
   const [prioridad, setPrioridad] = useState(initialDraft?.prioridad || '');
+  const [adjuntos, setAdjuntos] = useState<string[]>(initialDraft?.adjuntos || []);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<{ asunto?: string; descripcion?: string; categoria?: string; prioridad?: string }>({});
+
+  const handleFiles = (files: FileList | File[] | null) => {
+    if (!files || !files.length) return;
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (typeof e.target?.result === 'string') {
+          setAdjuntos((prev) => [...prev, e.target!.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeAdjunto = (index: number) => {
+    setAdjuntos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) handleFiles([file]);
+      }
+    }
+  };
 
   const validate = (): boolean => {
     const newErrors: { asunto?: string; descripcion?: string; categoria?: string; prioridad?: string } = {};
@@ -69,7 +101,8 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
         descripcion: descripcion.trim(),
         categoria,
         prioridad: finalPrioridad,
-        contextoIa: initialDraft?.contextoIa
+        contextoIa: initialDraft?.contextoIa,
+        adjuntos
       });
     } else {
       onSubmitSuccess?.();
@@ -95,7 +128,7 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
       {/* 2-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Form Column */}
-        <div ref={formRef} className="lg:col-span-8 space-y-5">
+        <div ref={formRef} onPaste={handlePaste} className="lg:col-span-8 space-y-5">
           {initialDraft?.contextoIa && <details className="rounded-lg border border-slate-200 p-3 text-sm"><summary className="cursor-pointer font-medium">Contexto de IA que se adjuntará al ticket</summary><pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-600 font-sans">{initialDraft.contextoIa}</pre></details>}
           {/* Asunto */}
           <div>
@@ -204,16 +237,64 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Adjuntos Dropzone */}
+          {/* Adjuntos Dropzone Real */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Adjuntos</label>
-            <div className="border border-slate-200 rounded-lg p-4 bg-slate-50 flex flex-col items-start">
-              <UploadCloud className="w-6 h-6 text-slate-400 mb-2" />
-              <p className="text-xs text-slate-600 font-medium">
-                La carga de adjuntos aún no está disponible en este entorno.
-              </p>
-              <p className="text-xs text-slate-400 mt-1">Puedes incluir la información relevante en la descripción.</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-slate-700">
+                Evidencias y capturas de pantalla ({adjuntos.length})
+              </label>
+              <span className="text-[11px] text-slate-400">PNG, JPG o Ctrl+V</span>
             </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+
+            <div
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFiles(e.dataTransfer.files); }}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-lg p-5 flex flex-col items-center justify-center text-center cursor-pointer transition ${
+                isDragging
+                  ? 'border-blue-500 bg-blue-50/80 ring-2 ring-blue-200'
+                  : 'border-slate-300 hover:border-blue-400 bg-slate-50/60 hover:bg-slate-50'
+              }`}
+            >
+              <UploadCloud className="w-7 h-7 text-blue-600 mb-1.5" />
+              <p className="text-xs font-semibold text-slate-800">
+                Arrastra aquí tus capturas de error o haz clic para examinar
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                También puedes pegar directamente con <kbd className="bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono">Ctrl+V</kbd>
+              </p>
+            </div>
+
+            {adjuntos.length > 0 && (
+              <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {adjuntos.map((img, idx) => (
+                  <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200 aspect-video bg-white shadow-xs">
+                    <img src={img} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removeAdjunto(idx); }}
+                      className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 opacity-90 hover:opacity-100 shadow transition cursor-pointer"
+                      title="Eliminar evidencia"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] font-mono px-1 py-0.5 rounded">
+                      Evidencia #{idx + 1}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Actions */}

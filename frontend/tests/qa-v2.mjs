@@ -50,4 +50,22 @@ assert.equal(assigned.technician.nombre, 'Carlos Mendoza');
 const dateCheck = d.getTicketDate({ createdAt: '2026-11-25T10:00:00.000Z' });
 assert.ok(dateCheck instanceof Date && !isNaN(dateCheck.getTime()));
 
-console.log('QA V2: 23 comprobaciones de dominio, IA, triaje y balanceo least-loaded superadas.');
+// Comprobaciones de Aislamiento de Tickets para Técnicos y Manejo de Adjuntos
+const techAlfredo = { id: 'U-TECH-SW1', nombre: 'Alfredo González Soto', rol: 'tecnico' };
+const techCarlos = { id: 'U-TECH-NET1', nombre: 'Carlos Mendoza', rol: 'tecnico' };
+const adminUser = { id: 'U-ADMIN-1', nombre: 'Ing. José Luis Bautista', rol: 'admin' };
+
+const tckAlfredo = { id: 'TCK-1046', solicitante: 'Lucía Torres', solicitanteId: 'U-EMP-2', asignacion: 'Alfredo González Soto', estado: 'En progreso' };
+const tckCarlos = { id: 'TCK-1048', solicitante: 'Lucía Torres', solicitanteId: 'U-EMP-2', asignacion: 'Carlos Mendoza', estado: 'En progreso' };
+
+assert.equal(d.canViewTicket(tckAlfredo, techAlfredo), true, 'El técnico debe ver los tickets asignados a su nombre');
+assert.equal(d.canViewTicket(tckCarlos, techAlfredo), false, 'El técnico NO debe ver los tickets asignados a otros técnicos');
+assert.equal(d.canViewTicket(tckCarlos, techCarlos), true, 'El técnico Carlos debe ver su propio ticket');
+assert.equal(d.canViewTicket(tckAlfredo, adminUser), true, 'El admin debe ver todos los tickets');
+assert.equal(d.canViewTicket(tckCarlos, adminUser), true, 'El admin debe ver todos los tickets');
+
+const normalizedWithAdjuntos = d.normalizeTicket({ ...own, adjuntos: ['data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA'] });
+assert.equal(normalizedWithAdjuntos.adjuntos.length, 1);
+assert.equal(normalizedWithAdjuntos.adjuntos[0], 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA');
+
+console.log('QA V2: 28 comprobaciones de dominio, IA, triaje, least-loaded y aislamiento de técnicos superadas.');

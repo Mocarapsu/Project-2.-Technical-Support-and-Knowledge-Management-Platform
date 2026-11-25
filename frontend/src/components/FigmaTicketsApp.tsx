@@ -20,7 +20,7 @@ import { loadCloudProfile, loadWorkspace, cloudTicketAction, cloudMarkRead, clou
 import { canViewTicket, visibleTicket, notificationVisible, normalizeCategory, PRIORITIES, CATEGORIES, textOnlyIcon, slaText, determineAutomaticPriority, assignTechnicianLeastLoaded } from '../services/ticketDomain';
 import { printExecutiveReport } from '../services/reportGenerator';
 
-type Draft = { asunto:string; descripcion:string; categoria:string; prioridad:string; contextoIa?:string };
+type Draft = { asunto:string; descripcion:string; categoria:string; prioridad:string; contextoIa?:string; adjuntos?:string[] };
 const home = (user:UserAccount):ActiveScreen => user.rol === 'admin' ? 'admin_dashboard' : user.rol === 'tecnico' ? 'tecnico_cola' : 'empleado_inicio';
 const allows = (screen:ActiveScreen,user:UserAccount):boolean => screen === 'tecnico_kb' || screen === 'empleado_nuevo' || (user.rol === 'empleado' ? screen.startsWith('empleado_') : screen.startsWith('tecnico_') || (user.rol === 'admin' && screen === 'admin_dashboard'));
 const now = () => new Date().toLocaleString('es-MX', { dateStyle:'short',timeStyle:'short' });
@@ -167,7 +167,7 @@ export const FigmaTicketsApp:React.FC = () => {
     const assignmentResult=assignTechnicianLeastLoaded(clean.categoria,techs,all);
     const assigned=assignmentResult.technician?.nombre||'Sin asignar';
     const ts=new Date();const hours=clean.prioridad==='Crítica'?1:clean.prioridad==='Alta'?4:8;
-    const t:TicketItem={id:`TCK-${nextNum}`,asunto:clean.asunto,descripcion:clean.descripcion,contextoIa:clean.contextoIa,solicitante:user.nombre,solicitanteId:user.id,prioridad:clean.prioridad as TicketPriority,categoria:clean.categoria,estado:assigned==='Sin asignar'?'Abierto':'En progreso',asignacion:assigned,departamento:user.departamento,fechaCreacion:now(),createdAt:ts.toISOString(),slaDeadline:new Date(ts.getTime()+hours*3600000).toISOString(),slaRestante:`0${hours} h 00 min`,comentariosPublicos:[],notasInternas:[],historialAuditoria:[`Ticket creado por ${user.nombre} (${now()})`,assignmentResult.reason]};
+    const t:TicketItem={id:`TCK-${nextNum}`,asunto:clean.asunto,descripcion:clean.descripcion,contextoIa:clean.contextoIa,solicitante:user.nombre,solicitanteId:user.id,prioridad:clean.prioridad as TicketPriority,categoria:clean.categoria,estado:assigned==='Sin asignar'?'Abierto':'En progreso',asignacion:assigned,departamento:user.departamento,fechaCreacion:now(),createdAt:ts.toISOString(),slaDeadline:new Date(ts.getTime()+hours*3600000).toISOString(),slaRestante:`0${hours} h 00 min`,comentariosPublicos:[],notasInternas:[],historialAuditoria:[`Ticket creado por ${user.nombre} (${now()})`,assignmentResult.reason],adjuntos:clean.adjuntos||[]};
     setLocalTickets([t,...all]);
     void saveCloudTicket(t);
     setSelectedId(t.id);setDraft(null);setScreen(user.rol==='empleado'?'empleado_detalle':'tecnico_detalle');notify(t,`Ticket ${t.id} creado`,`${t.asunto} · ${assigned}`,'alerta');

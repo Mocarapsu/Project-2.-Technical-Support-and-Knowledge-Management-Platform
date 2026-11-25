@@ -93,6 +93,7 @@ export interface TicketItem {
   notasInternas?: string[];
   comentariosPublicos?: TicketComment[];
   historialAuditoria?: string[];
+  adjuntos?: string[];
 }
 
 export interface KbArticle {

@@ -28,11 +28,17 @@ export function slaText(ticket: TicketItem): string {
   return ticket.slaRestante || 'No disponible';
 }
 export function normalizeTicket(ticket: TicketItem): TicketItem {
-  return { ...ticket, prioridad: normalizePriority(ticket.prioridad), categoria: normalizeCategory(ticket.categoria), comentariosPublicos: ticket.comentariosPublicos || [], notasInternas: ticket.notasInternas || [], historialAuditoria: ticket.historialAuditoria || [] };
+  return { ...ticket, prioridad: normalizePriority(ticket.prioridad), categoria: normalizeCategory(ticket.categoria), comentariosPublicos: ticket.comentariosPublicos || [], notasInternas: ticket.notasInternas || [], historialAuditoria: ticket.historialAuditoria || [], adjuntos: ticket.adjuntos || [] };
 }
 export function canViewTicket(ticket: TicketItem, user?: UserAccount | null): boolean {
   if (!user) return false;
-  if (user.rol !== 'empleado') return true;
+  if (user.rol === 'admin') return true;
+  if (user.rol === 'tecnico') {
+    const techName = user.nombre.trim().toLowerCase();
+    const assigned = (ticket.asignacion || '').trim().toLowerCase();
+    const requested = (ticket.solicitante || '').trim().toLowerCase();
+    return assigned.includes(techName) || (ticket.solicitanteId === user.id) || requested === techName;
+  }
   return ticket.solicitanteId ? ticket.solicitanteId === user.id : ticket.solicitante.trim().toLowerCase() === user.nombre.trim().toLowerCase();
 }
 export function visibleTicket(ticket: TicketItem, user: UserAccount): TicketItem {
