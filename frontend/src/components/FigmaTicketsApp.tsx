@@ -62,17 +62,33 @@ export const FigmaTicketsApp:React.FC = () => {
       setTickets(getStoredTickets());
       setTechnicians(getStoredTechnicians());
       setNotifications(getStoredNotifications());
-      void fetchCloudTickets().then(cloud=>{if(cloud&&cloud.length>0)setTickets(cloud);});
+      void fetchCloudTickets().then(cloud=>{if(cloud&&cloud.length>0){setTickets(cloud);setConnected(true);}});
     }
     else {setTickets([]);setTechnicians([]);setNotifications([]);setLoading(true);setConnected(false);}
   }
+  const syncWithCloud = () => {
+    void fetchCloudTickets().then(cloud => {
+      if (cloud && cloud.length > 0) {
+        setTickets(cloud);
+        setConnected(true);
+      }
+    });
+  };
+
   useEffect(()=>{
-    void fetchCloudTickets().then(cloud=>{if(cloud&&cloud.length>0)setTickets(cloud);});
+    syncWithCloud();
     if(!supabase)return;
-    const channel=supabase.channel('public:tickets:realtime').on('postgres_changes',{event:'*',schema:'public',table:'tickets'},()=>{
-      void fetchCloudTickets().then(cloud=>{if(cloud&&cloud.length>0)setTickets(cloud);});
-    }).subscribe();
-    return ()=>{supabase?.removeChannel(channel);};
+    const channel=supabase.channel('public:tickets:realtime').on('postgres_changes',{event:'*',schema:'public',table:'tickets'},(payload)=>{
+      console.log('[Supabase Realtime] Evento recibido en vivo:', payload.eventType);
+      syncWithCloud();
+    }).subscribe((status)=>{
+      if (status === 'SUBSCRIBED') setConnected(true);
+    });
+    const pollInterval = window.setInterval(syncWithCloud, 4000);
+    return ()=>{
+      window.clearInterval(pollInterval);
+      supabase?.removeChannel(channel);
+    };
   },[]);
   useEffect(()=>{
     if(DEMO_MODE){setChecking(false);return;}
@@ -169,7 +185,9 @@ export const FigmaTicketsApp:React.FC = () => {
     const ts=new Date();const hours=clean.prioridad==='Crítica'?1:clean.prioridad==='Alta'?4:8;
     const t:TicketItem={id:`TCK-${nextNum}`,asunto:clean.asunto,descripcion:clean.descripcion,contextoIa:clean.contextoIa,solicitante:user.nombre,solicitanteId:user.id,prioridad:clean.prioridad as TicketPriority,categoria:clean.categoria,estado:assigned==='Sin asignar'?'Abierto':'En progreso',asignacion:assigned,departamento:user.departamento,fechaCreacion:now(),createdAt:ts.toISOString(),slaDeadline:new Date(ts.getTime()+hours*3600000).toISOString(),slaRestante:`0${hours} h 00 min`,comentariosPublicos:[],notasInternas:[],historialAuditoria:[`Ticket creado por ${user.nombre} (${now()})`,assignmentResult.reason],adjuntos:clean.adjuntos||[]};
     setLocalTickets([t,...all]);
-    void saveCloudTicket(t);
+    void saveCloudTicket(t).then(ok => {
+      if (ok) syncWithCloud();
+    });
     setSelectedId(t.id);setDraft(null);setScreen(user.rol==='empleado'?'empleado_detalle':'tecnico_detalle');notify(t,`Ticket ${t.id} creado`,`${t.asunto} · ${assigned}`,'alerta');
   });
   const ticketAction=(action:string,id:string,value?:string)=>perform(async()=>{
@@ -193,7 +211,9 @@ export const FigmaTicketsApp:React.FC = () => {
     updated.historialAuditoria=[event,...(original.historialAuditoria||[])];
     const nextTickets=all.map(x=>x.id===id?updated:x);
     setLocalTickets(nextTickets);
-    void saveCloudTicket(updated);
+    void saveCloudTicket(updated).then(ok => {
+      if (ok) syncWithCloud();
+    });
     if(title)notify(updated,title,message,type);
   });
   const addTech=(tech:TechnicianProfile)=>perform(async()=>{if(user?.rol!=='admin')throw new Error('Permisos insuficientes.');if(!DEMO_MODE){await cloudAddTechnician(tech);await refreshWorkspace();return;}if(getStoredUsers().some(u=>u.email===tech.email))throw new Error('El correo ya está registrado.');saveNewUser({nombre:tech.nombre,email:tech.email,rol:'tecnico',departamento:tech.especialidad,password:'Password123!'});const next=[...getStoredTechnicians().filter(t=>t.email!==tech.email),tech];saveStoredTechnicians(next);setTechnicians(next);notify(undefined,'Técnico registrado',tech.nombre,'alerta');});
@@ -204,7 +224,7 @@ export const FigmaTicketsApp:React.FC = () => {
   return <div className="rialsa-shell min-h-screen bg-[#F7F8FA] text-slate-900 flex h-dvh overflow-hidden">
     <Sidebar key={user.id} currentRole={user.rol} currentScreen={actualScreen} currentUser={user} onNavigate={navigate} onLogout={logout} collapsed={collapsed} onToggleCollapse={()=>setCollapsed(v=>!v)} mobileOpen={mobileOpen} onCloseMobile={()=>setMobileOpen(false)}/>
     <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
-      <HeaderBar key={user.id} currentScreen={actualScreen} currentUser={user} notifications={visibleNotifs} onMarkAllAsRead={()=>markRead()} onSelectNotification={n=>{void markRead(n.id);if(n.ticketId)selectTicket(n.ticketId);}} onHelp={()=>navigate('tecnico_kb')} onOpenMenu={()=>setMobileOpen(true)} connected={connected} demo={DEMO_MODE}/>
+      <HeaderBar key={user.id} currentScreen={actualScreen} currentUser={user} notifications={visibleNotifs} onMarkAllAsRead={()=>markRead()} onSelectNotification={n=>{void markRead(n.id);if(n.ticketId)selectTicket(n.ticketId);}} onHelp={()=>navigate('tecnico_kb')} onOpenMenu={()=>setMobileOpen(true)} onRefresh={syncWithCloud} connected={connected} demo={DEMO_MODE}/>
       <div className="flex-1 overflow-y-auto min-w-0" id="main-content">
         <div className="px-4 py-5 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full min-w-0">
           {error&&<div role="alert" className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"><span>{error}</span><div className="flex gap-2">{!DEMO_MODE&&<button onClick={retry} className="font-semibold underline">Reintentar</button>}<button aria-label="Cerrar error" onClick={()=>setError('')}><X size={16}/></button></div></div>}

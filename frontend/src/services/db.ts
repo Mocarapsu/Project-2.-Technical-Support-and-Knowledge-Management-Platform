@@ -1402,35 +1402,51 @@ export function ticketToRow(t: TicketItem): Record<string, unknown> {
     resolved_at: t.resolvedAt || null,
     notas_internas: t.notasInternas || [],
     comentarios_publicos: t.comentariosPublicos || [],
-    historial_auditoria: t.historialAuditoria || [],
-    adjuntos: t.adjuntos || []
+    historial_auditoria: t.historialAuditoria || []
   };
 }
 
 export async function fetchCloudTickets(): Promise<TicketItem[] | null> {
   if (!supabase) return null;
   try {
-    const { data, error } = await supabase.from('tickets').select('*').order('id', { ascending: false });
-    if (error || !data) return null;
+    const { data, error } = await supabase.from('tickets').select('*');
+    if (error || !data) {
+      console.warn('[Supabase Cloud] Error al consultar tickets:', error);
+      return null;
+    }
     if (data.length === 0) {
       const rows = DEFAULT_TICKETS.map(ticketToRow);
       await supabase.from('tickets').upsert(rows);
       return DEFAULT_TICKETS;
     }
     const mapped = data.map(mapRowToTicket);
+    mapped.sort((a, b) => {
+      const numA = Number(a.id.replace(/\D/g, '')) || 0;
+      const numB = Number(b.id.replace(/\D/g, '')) || 0;
+      return numB - numA;
+    });
     saveStoredTickets(mapped);
     return mapped;
-  } catch {
+  } catch (err) {
+    console.warn('[Supabase Cloud] Excepción en fetchCloudTickets:', err);
     return null;
   }
 }
 
-export async function saveCloudTicket(ticket: TicketItem): Promise<void> {
-  if (!supabase) return;
+export async function saveCloudTicket(ticket: TicketItem): Promise<boolean> {
+  if (!supabase) return false;
   try {
-    await supabase.from('tickets').upsert(ticketToRow(ticket));
+    const row = ticketToRow(ticket);
+    const { error } = await supabase.from('tickets').upsert(row);
+    if (error) {
+      console.error('[Supabase Cloud] Error al guardar ticket:', error.message || error);
+      return false;
+    }
+    console.log('[Supabase Cloud] Ticket sincronizado exitosamente:', ticket.id);
+    return true;
   } catch (err) {
-    console.warn('Error sincronizando ticket en la nube:', err);
+    console.warn('[Supabase Cloud] Excepción sincronizando ticket en la nube:', err);
+    return false;
   }
 }
 
