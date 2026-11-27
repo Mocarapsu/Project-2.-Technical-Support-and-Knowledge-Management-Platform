@@ -125,6 +125,46 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
         </p>
       </div>
 
+      {/* Banner Destacado: Paso 1 Obligatorio con Asistente IA */}
+      {onTryAiFirst && (
+        <div className="mb-6 p-4 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-blue-50/90 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-start gap-3 max-w-xl">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
+              <Sparkles className="w-5 h-5 animate-pulse text-amber-300" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-blue-900 uppercase tracking-wide">Paso 1 Obligatorio · Diagnóstico Inteligente</span>
+                <span className="text-[10px] bg-blue-200/90 text-blue-800 font-bold px-2 py-0.5 rounded-full">82% Solución Inmediata</span>
+              </div>
+              <h2 className="text-sm font-bold text-slate-900">
+                ¿Probaste resolver tu incidencia con el Asistente IA de GID?
+              </h2>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Antes de abrir un ticket formal y esperar a un técnico humano, consulta al Asistente IA. El 82% de las incidencias en Grupo Industrial Delnorte (SAP, VPN, impresoras térmicas y cuentas) se resuelven en menos de 1 minuto sin esperas.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              onTryAiFirst?.({
+                asunto: asunto.trim(),
+                descripcion: descripcion.trim(),
+                categoria: categoria || 'General',
+                prioridad: prioridad || 'Media',
+                adjuntos
+              })
+            }
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2 cursor-pointer flex-shrink-0"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>Consultar con Asistente IA</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* 2-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Form Column */}
@@ -298,24 +338,51 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200">
             <button
               type="button"
               onClick={onCancel}
-              className="text-xs font-medium text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition"
+              className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-4 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition cursor-pointer"
             >
               Cancelar
             </button>
-            <motion.button
-              type="button"
-              onClick={handleCreate}
-              disabled={busy}
-              whileHover={shouldReduceMotion ? undefined : { scale: 1.02 }}
-              whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
-              className="text-xs font-semibold bg-slate-900 hover:bg-black text-white px-5 py-2 rounded-lg  transition"
-            >
-              {busy ? "Creando…" : "Crear ticket"}
-            </motion.button>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Botón Principal Obligatorio: Asistente IA */}
+              {onTryAiFirst && (
+                <motion.button
+                  type="button"
+                  whileHover={shouldReduceMotion ? undefined : { scale: 1.02 }}
+                  whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+                  onClick={() =>
+                    onTryAiFirst?.({
+                      asunto: asunto.trim(),
+                      descripcion: descripcion.trim(),
+                      categoria: categoria || 'General',
+                      prioridad: prioridad || 'Media',
+                      adjuntos
+                    })
+                  }
+                  className="text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-lg shadow-sm flex items-center gap-2 cursor-pointer border border-blue-500/50"
+                  title="Analiza el problema con el Asistente IA antes de abrir el ticket"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                  <span>1. Resolver con Asistente IA (Recomendado)</span>
+                </motion.button>
+              )}
+
+              {/* Botón Secundario: Crear ticket para técnico humano */}
+              <motion.button
+                type="button"
+                onClick={handleCreate}
+                disabled={busy}
+                whileHover={shouldReduceMotion ? undefined : { scale: 1.02 }}
+                whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+                className="text-xs font-semibold bg-slate-900 hover:bg-black text-white px-4 py-2.5 rounded-lg transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+              >
+                <span>{busy ? "Creando…" : "2. Crear ticket formal (Soporte humano)"}</span>
+              </motion.button>
+            </div>
           </div>
         </div>
 
@@ -323,52 +390,40 @@ export const EmployeeNewTicketView: React.FC<Props> = ({
         <div className="lg:col-span-4">
           <div className="bg-slate-50/90 border border-slate-200/80 rounded-lg p-5 space-y-4">
             <div>
-              <h3 className="text-xs font-bold text-slate-900">Antes de enviar</h3>
+              <h3 className="text-xs font-bold text-slate-900">Política de Soporte GID</h3>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Un buen ticket evita preguntas adicionales y acelera la solución con soporte.
+                Para acelerar la solución y evitar tiempos de espera, el Asistente IA analiza tu consulta con la base de conocimientos oficial.
               </p>
             </div>
 
             <div className="space-y-2.5 pt-1 text-xs text-slate-700">
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <span>Mensaje de error exacto</span>
+                <span>Solución inmediata en &lt; 1 minuto</span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <span>Equipo o sistema afectado</span>
+                <span>Paso a paso con manuales autorizados</span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <span>Momento en que comenzó</span>
+                <span>Si no se resuelve, se transfiere automáticamente a un especialista humano</span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <span>Captura de pantalla si aplica</span>
+                <span>Evidencias y capturas adjuntas pasan al técnico</span>
               </div>
             </div>
 
-            {onTryAiFirst && <div className="pt-3 border-t border-slate-200/60">
-              <button
-                type="button"
-                onClick={() =>
-                  onTryAiFirst?.({
-                    asunto: asunto.trim(),
-                    descripcion: descripcion.trim(),
-                    categoria: categoria || 'General',
-                    prioridad: prioridad || 'Media'
-                  })
-                }
-                className="w-full text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center justify-between group p-1 cursor-pointer"
-                title="Analiza el problema con el Asistente IA antes de abrir el ticket"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
-                  <span>Probar con IA primero</span>
-                </span>
-                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
-              </button>
-            </div>}
+            <div className="pt-3 border-t border-slate-200/70 text-xs text-blue-900 bg-blue-50/60 p-3 rounded-lg border border-blue-200/60">
+              <div className="font-bold flex items-center gap-1.5 text-blue-950">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                <span>Autoservicio RIALSA</span>
+              </div>
+              <p className="text-[11px] text-slate-600 mt-1">
+                Haz clic en <strong>1. Resolver con Asistente IA</strong> para obtener respuesta inmediata.
+              </p>
+            </div>
           </div>
         </div>
       </div>

@@ -1,7 +1,8 @@
 import React,{useState} from 'react';
-import {ArrowUpRight,Search,Plus,UserCheck,Inbox,AlertCircle,Clock,CheckCircle2} from 'lucide-react';
+import {ArrowUpRight,Search,Plus,UserCheck,Inbox,AlertCircle,Clock,CheckCircle2,Printer} from 'lucide-react';
 import {TicketItem,UserAccount} from '../../types/figma-tickets';
 import {CATEGORIES,PRIORITIES,canViewTicket} from '../../services/ticketDomain';
+import {printTechnicianReport} from '../../services/reportGenerator';
 import {Button,EmptyState,PriorityBadge,StatusBadge,SLAIndicator} from '../ui';
 
 interface Props{tickets?:TicketItem[];currentUser?:UserAccount|null;onSelectTicket?:(id:string)=>void;onCreate?:()=>void;onAssignTicket?:(id:string,tech:string)=>void;staff?:boolean;}
@@ -37,7 +38,14 @@ export const TicketTable:React.FC<Props>=({tickets=[],currentUser:user,onSelectT
         <h1 className="text-2xl font-semibold tracking-tight">{user?.rol==='tecnico'?'Mis tickets asignados':staff?'Cola de tickets':'Mis tickets'}</h1>
         <p className="text-sm text-slate-600 mt-1">{user?.rol==='tecnico'?'Gestiona los incidentes asignados a tu nombre por el balanceador inteligente de carga.':staff?'Gestiona las solicitudes, atiende tickets y prioriza incidentes.':'Consulta y da seguimiento a tus solicitudes de soporte.'}</p>
       </div>
-      <Button variant="primary" onClick={onCreate}><Plus size={17}/>{staff?'Crear ticket interno':'Crear ticket'}</Button>
+      <div className="flex items-center gap-2">
+        {user?.rol==='tecnico'&&(
+          <Button variant="secondary" onClick={()=>printTechnicianReport(user, tickets)}>
+            <Printer size={15}/><span>Exportar mi reporte</span>
+          </Button>
+        )}
+        <Button variant="primary" onClick={onCreate}><Plus size={17}/>{staff?'Crear ticket interno':'Crear ticket'}</Button>
+      </div>
     </div>
 
     {staff&&(user?.rol==='tecnico'?(
